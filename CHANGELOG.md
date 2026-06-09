@@ -4,6 +4,9 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-09 `docs(status)` (d1b044d) — reconcile project status with implemented M0 foundations
+  - Findings.md: original audit bleibt als Snapshot, neue dated 'Stand der Behebung'-Sektion mappt jedes Finding auf den behebenden PR und führt den offenen Restumfang (Cockpit/Search, API-Gateway, Last-/Latenz-CI-Gate) ehrlich auf
+  - README.md: tatsächlich existierende Module (crm, catalog, audit, workflow) gelistet und die nie genutzte 'internal'-Konvention durch die reale hexagonale Schichtung ersetzt 
 - 2026-06-09 `feat(workflow)` (3452505) — Flowable workflow-engine core with generic approval process
   - New hexagonal 'workflow' Modulith module wrapping Flowable behind an ApprovalEngine port; ApprovalService enforces workflow.approval:* permissions
   - Generic approval BPMN (request → review user task → approved/rejected via gateway on the 'approved' variable) auto-deployed from classpath:/processes
