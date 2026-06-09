@@ -8,19 +8,19 @@ import de.volantic.erp.crm.domain.event.PartnerContactLinked;
 import de.volantic.erp.crm.domain.event.PartnerContactUnlinked;
 import de.volantic.erp.crm.domain.model.PartnerRef;
 import de.volantic.erp.crm.domain.model.PartnerType;
+import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
  * Keeps the 360° entity-link graph in sync with CRM changes. Listens to CRM domain events and records
  * the corresponding edges via the core {@link EntityLinkRegistry} (allowed: core is an OPEN module).
  *
- * <p>Uses a synchronous {@link TransactionalEventListener} firing AFTER_COMMIT — so the link is only
- * recorded once the contact/address actually persisted, and recording it never rolls back the CRM
- * write. After commit there is no active transaction, so the {@code @Transactional} EntityLinkService
- * opens a fresh one for the link write. This is the "maintained via domain events" mechanism (DB arch
- * §5.3), kept synchronous to avoid the async event-registry schema and stay deterministically testable.
+ * <p>Uses {@link ApplicationModuleListener}: the publication is persisted in the event publication
+ * registry (Outbox) before delivery and marked complete afterwards, so the link is durable — a crash
+ * between the CRM commit and recording the link leaves an incomplete publication that is retried,
+ * rather than silently lost. Each handler runs in its own transaction after the publisher commits, so
+ * recording the link never rolls back the CRM write. This is the "maintained via domain events"
+ * mechanism (DB architecture §5.3).
  */
 @Component
 class CrmEntityLinkSynchronizer {
@@ -36,22 +36,22 @@ class CrmEntityLinkSynchronizer {
         this.links = links;
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @ApplicationModuleListener
     void on(PartnerContactLinked event) {
         links.link(ownerRef(event.owner()), EntityRef.of(TYPE_CONTACT, event.contactId().value()), LINK_HAS_CONTACT);
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @ApplicationModuleListener
     void on(PartnerContactUnlinked event) {
         links.unlink(ownerRef(event.owner()), EntityRef.of(TYPE_CONTACT, event.contactId().value()), LINK_HAS_CONTACT);
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @ApplicationModuleListener
     void on(PartnerAddressLinked event) {
         links.link(ownerRef(event.owner()), EntityRef.of(TYPE_ADDRESS, event.addressId().value()), LINK_HAS_ADDRESS);
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @ApplicationModuleListener
     void on(PartnerAddressUnlinked event) {
         links.unlink(ownerRef(event.owner()), EntityRef.of(TYPE_ADDRESS, event.addressId().value()), LINK_HAS_ADDRESS);
     }
