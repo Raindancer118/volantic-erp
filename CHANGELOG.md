@@ -4,6 +4,11 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-09 `feat(core)` (bd94efd) — GoBD gap-free number ranges
+  - core.number_range with a pessimistic-write-locked counter (SELECT ... FOR UPDATE) so concurrent allocations serialize and a rollback rolls the counter back too — gap-free GoBD numbering (DB arch §5.1)
+  - NumberRanges public API (defineRange idempotent, next), hexagonal: domain NumberRange (prefix + zero-padded value), service, store port, JPA adapter
+  - Flyway core.number_range (V902)
+  - tests: domain formatting, service orchestration, Postgres allocation IT 
 - 2026-06-09 `feat(core)` (9336d7b) — money/quantity foundation value objects
   - Money (ISO-4217 Currency, scale-normalized with banker's rounding, currency-safe arithmetic), Quantity (amount + UnitOfMeasure, unit-safe arithmetic) and UnitOfMeasure (validated code) in the core shared kernel
   - pure immutable VOs, no persistence — used by catalog/inventory/sales later
