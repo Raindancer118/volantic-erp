@@ -10,7 +10,7 @@ CREATE TABLE crm.address (
     street       VARCHAR(200) NOT NULL,
     postal_code  VARCHAR(20)  NOT NULL,
     city         VARCHAR(100) NOT NULL,
-    country_code CHAR(2)      NOT NULL
+    country_code VARCHAR(2)   NOT NULL   -- ISO 3166-1 alpha-2; varchar (not char) to match the JPA String mapping under ddl-auto=validate
 );
 
 CREATE INDEX idx_address_owner ON crm.address (owner_type, owner_id);
