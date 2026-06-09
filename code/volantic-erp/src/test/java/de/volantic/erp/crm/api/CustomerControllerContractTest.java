@@ -5,6 +5,7 @@ import de.volantic.erp.crm.application.CustomerService;
 import de.volantic.erp.crm.domain.model.Customer;
 import de.volantic.erp.crm.domain.model.CustomerId;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -84,11 +85,13 @@ class CustomerControllerContractTest {
     }
 
     @Test
-    void listReturns200() throws Exception {
-        when(customerService.listCustomers()).thenReturn(List.of(Customer.create("C-1", "ACME", "a@acme.de")));
+    void listReturnsPagedEnvelope() throws Exception {
+        when(customerService.listCustomers(any()))
+                .thenReturn(new PageImpl<>(List.of(Customer.create("C-1", "ACME", "a@acme.de"))));
 
         mvc.perform(get("/v1/crm/customers"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].customerNumber").value("C-1"));
+                .andExpect(jsonPath("$.content[0].customerNumber").value("C-1"))
+                .andExpect(jsonPath("$.totalElements").value(1));
     }
 }

@@ -14,6 +14,7 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Pageable;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -50,8 +51,8 @@ class AddressContactRepositoryIT {
         addresses.save(Address.create(customer, AddressType.SHIPPING, "Side St 2", "10115", "Berlin", "DE"));
         addresses.save(Address.create(supplier, AddressType.DEFAULT, "Ind. Rd 9", "80331", "Munich", "DE"));
 
-        assertThat(addresses.findByOwner(customer)).hasSize(2);
-        assertThat(addresses.findByOwner(supplier)).hasSize(1);
+        assertThat(addresses.findByOwner(customer, Pageable.unpaged()).getContent()).hasSize(2);
+        assertThat(addresses.findByOwner(supplier, Pageable.unpaged()).getContent()).hasSize(1);
     }
 
     @Test
@@ -74,7 +75,7 @@ class AddressContactRepositoryIT {
         PartnerRef customer = PartnerRef.of(PartnerType.CUSTOMER, UuidV7.randomUuid());
         Contact contact = contacts.save(Contact.create(customer, "Erika", "Mustermann", "e@acme.de", "+49 40 1"));
 
-        assertThat(contacts.findByOwner(customer)).singleElement()
+        assertThat(contacts.findByOwner(customer, Pageable.unpaged()).getContent()).singleElement()
                 .satisfies(c -> assertThat(c.lastName()).isEqualTo("Mustermann"));
 
         contact.change("Max", "Muster", "max@acme.de", null);
@@ -82,6 +83,6 @@ class AddressContactRepositoryIT {
         assertThat(contacts.findById(contact.id()).orElseThrow().firstName()).isEqualTo("Max");
 
         assertThat(contacts.deleteById(contact.id())).isTrue();
-        assertThat(contacts.findByOwner(customer)).isEmpty();
+        assertThat(contacts.findByOwner(customer, Pageable.unpaged()).getContent()).isEmpty();
     }
 }

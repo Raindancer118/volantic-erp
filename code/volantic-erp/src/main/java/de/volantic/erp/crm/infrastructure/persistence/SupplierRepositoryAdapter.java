@@ -3,9 +3,10 @@ package de.volantic.erp.crm.infrastructure.persistence;
 import de.volantic.erp.crm.application.port.out.SupplierRepository;
 import de.volantic.erp.crm.domain.model.Supplier;
 import de.volantic.erp.crm.domain.model.SupplierId;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
 import java.util.Optional;
 
 /** Outbound adapter for {@link SupplierRepository}: maps between domain {@link Supplier} and JPA. */
@@ -38,8 +39,8 @@ class SupplierRepositoryAdapter implements SupplierRepository {
     }
 
     @Override
-    public List<Supplier> findAll() {
-        return jpa.findAll().stream().map(this::toDomain).toList();
+    public Page<Supplier> findAll(Pageable pageable) {
+        return jpa.findAll(pageable).map(this::toDomain);
     }
 
     private Supplier toDomain(SupplierEntity entity) {

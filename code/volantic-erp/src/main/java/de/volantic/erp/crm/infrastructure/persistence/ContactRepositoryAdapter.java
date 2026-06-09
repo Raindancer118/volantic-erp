@@ -4,9 +4,10 @@ import de.volantic.erp.crm.application.port.out.ContactRepository;
 import de.volantic.erp.crm.domain.model.Contact;
 import de.volantic.erp.crm.domain.model.ContactId;
 import de.volantic.erp.crm.domain.model.PartnerRef;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
 import java.util.Optional;
 
 /** Outbound adapter for {@link ContactRepository}: maps between domain {@link Contact} and JPA. */
@@ -35,8 +36,8 @@ class ContactRepositoryAdapter implements ContactRepository {
     }
 
     @Override
-    public List<Contact> findByOwner(PartnerRef owner) {
-        return jpa.findByOwnerTypeAndOwnerId(owner.type(), owner.id()).stream().map(this::toDomain).toList();
+    public Page<Contact> findByOwner(PartnerRef owner, Pageable pageable) {
+        return jpa.findByOwnerTypeAndOwnerId(owner.type(), owner.id(), pageable).map(this::toDomain);
     }
 
     @Override

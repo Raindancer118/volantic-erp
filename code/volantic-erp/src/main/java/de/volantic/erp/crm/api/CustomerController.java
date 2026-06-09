@@ -1,9 +1,12 @@
 package de.volantic.erp.crm.api;
 
+import de.volantic.erp.core.web.PageResponse;
 import de.volantic.erp.crm.application.CustomerService;
 import de.volantic.erp.crm.domain.model.Customer;
 import de.volantic.erp.crm.domain.model.CustomerId;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,7 +18,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -46,8 +48,8 @@ class CustomerController {
     }
 
     @GetMapping
-    List<CustomerResponse> list() {
-        return customers.listCustomers().stream().map(CustomerResponse::from).toList();
+    PageResponse<CustomerResponse> list(@PageableDefault(size = 50) Pageable pageable) {
+        return PageResponse.of(customers.listCustomers(pageable), CustomerResponse::from);
     }
 
     @PutMapping("/{id}")

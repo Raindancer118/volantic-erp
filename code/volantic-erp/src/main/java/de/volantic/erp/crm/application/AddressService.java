@@ -8,11 +8,11 @@ import de.volantic.erp.crm.domain.model.AddressId;
 import de.volantic.erp.crm.domain.model.AddressType;
 import de.volantic.erp.crm.domain.model.PartnerRef;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 /** Address use cases. Authorization enforced here at the service boundary (ADR-0004). */
 @Service
@@ -43,8 +43,8 @@ public class AddressService {
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasPermission(null, 'crm.address:read')")
-    public List<Address> listAddresses(PartnerRef owner) {
-        return addresses.findByOwner(owner);
+    public Page<Address> listAddresses(PartnerRef owner, Pageable pageable) {
+        return addresses.findByOwner(owner, pageable);
     }
 
     @Transactional
