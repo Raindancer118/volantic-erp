@@ -4,6 +4,16 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-09 `feat(security)` (5335e80) — cache authorization snapshot in Redis
+  - per-OIDC-subject snapshot (CachedUser) cached in Redis with a 5-min TTL; decision still runs in the pure domain
+  - UserGraphCache loads via single @EntityGraph query on a miss, served from cache on a hit (sub-500 ms NFR)
+  - fail-open: cache errors degrade to the database (CacheErrorHandler), Redis connects lazily so startup is unaffected
+  - unknown subjects are not negative-cached
+  - TODO: explicit eviction once a write side exists 
+- 2026-06-09 `docs(changelog)` (3924bfa) — support indented detail lines and expand entries
+  - changelog.sh gains an optional details arg (split on '
+  - ' into indented bullets)
+  - rebuilt CHANGELOG with fuller per-change descriptions 
 - 2026-06-09 `build(tooling)` (44f7b3c) — changelog script + project conventions
   - scripts/changelog.sh maintains CHANGELOG.md (newest-first, marker insert, optional indented details)
   - documented two standing conventions in CLAUDE.md: keep the changelog current on every commit, and develop code in English 
