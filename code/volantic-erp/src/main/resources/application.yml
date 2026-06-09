@@ -66,3 +66,16 @@ management:
     health:
       probes:
         enabled: true
+
+# Flowable workflow engine (Issue #5, M0). Flowable manages its own ACT_* tables via its built-in
+# schema manager (database-schema-update) — separate from Flyway and not validated by Hibernate, since
+# no ACT_* table is mapped as a JPA entity. The async executor is off: our approval process advances
+# synchronously on user-task completion, which keeps tests deterministic and avoids a background
+# polling thread. History at "audit" keeps process variables (e.g. the approval decision) queryable
+# after the instance ends.
+flowable:
+  database-schema-update: true
+  history-level: audit
+  async-executor-activate: false
+  process:
+    async-executor-activate: false

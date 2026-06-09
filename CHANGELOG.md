@@ -4,6 +4,12 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-09 `feat(workflow)` (3452505) — Flowable workflow-engine core with generic approval process
+  - New hexagonal 'workflow' Modulith module wrapping Flowable behind an ApprovalEngine port; ApprovalService enforces workflow.approval:* permissions
+  - Generic approval BPMN (request → review user task → approved/rejected via gateway on the 'approved' variable) auto-deployed from classpath:/processes
+  - REST v1 /v1/workflow/approvals: start, get, list pending, decide; RFC 7807 errors
+  - Flowable manages its ACT_* schema itself (no Flyway/Hibernate-validate coupling); async executor off, history audit
+  - Domain, service, REST-contract and full-context Flowable engine tests (approved + rejected branches) 
 - 2026-06-09 `feat(catalog)` (e12f7e7) — products and multi-level bills of materials
   - Product aggregate with SKU/name/Money list price and CRUD use cases behind catalog.product permissions
   - Versioned, immutable BOMs whose lines reference component products by id (multi-level); createBom validates product+component existence and (product,version) uniqueness

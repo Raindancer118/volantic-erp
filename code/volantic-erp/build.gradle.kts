@@ -21,6 +21,7 @@ repositories {
 val springModulithVersion = "1.4.1"
 val jmoleculesVersion = "2023.1.5"
 val testcontainersVersion = "1.20.4"
+val flowableVersion = "7.1.0"
 
 dependencies {
     // --- BOMs: managen alle transitiven Versionen, kein dependency-management-Plugin nötig ---
@@ -55,6 +56,12 @@ dependencies {
     implementation("org.springframework.modulith:spring-modulith-starter-jdbc")
     runtimeOnly("org.springframework.modulith:spring-modulith-actuator")
     runtimeOnly("org.springframework.modulith:spring-modulith-observability")
+
+    // --- Workflow-Engine: Flowable (BPMN) für Genehmigungsprozesse (M0-Fundament, Issue #5) ---
+    // Nur die Process-Engine (kein CMMN/DMN). Flowable verwaltet seine ACT_*-Tabellen selbst über sein
+    // eigenes Schema-Management — unabhängig von Flyway und ohne Hibernate-ddl-validate-Kopplung, da
+    // keine ACT_*-Tabelle als JPA-Entity gemappt ist.
+    implementation("org.flowable:flowable-spring-boot-starter-process:$flowableVersion")
 
     // --- jMolecules: DDD-Bausteine als prüfbare Annotationen ---
     implementation("org.jmolecules:jmolecules-ddd")
