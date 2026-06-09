@@ -4,6 +4,13 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-09 `fix(security)` (b28f2b6) — negative-cache unmirrored OIDC subjects to shield the database
+  - previously unless=#result==null skipped caching unknown subjects, so a validly signed but not-yet-mirrored subject hit the DB on every request (cache-bypass / DoS lever, Findings.md)
+  - now null results are cached too (removed unless + disableCachingNullValues); TTL bounds staleness and the write side will evict on provisioning 
+- 2026-06-09 `fix(core)` (7fe8013) — assign entity UUID only for new aggregates, not on every load
+  - AbstractEntity no longer initialises the id in the field/no-arg constructor — Hibernate's load path used it to generate a SecureRandom UUIDv7 that was immediately overwritten by the row, wasting CPU on the read hot path (sub-500 ms NFR)
+  - new aggregates assign the id via super(true) in the business constructor; equals/hashCode made null-safe
+  - added hibernate.default_batch_fetch_size=100 as an N+1 safety net 
 - 2026-06-09 `feat(security)` (5335e80) — cache authorization snapshot in Redis
   - per-OIDC-subject snapshot (CachedUser) cached in Redis with a 5-min TTL; decision still runs in the pure domain
   - UserGraphCache loads via single @EntityGraph query on a miss, served from cache on a hit (sub-500 ms NFR)
