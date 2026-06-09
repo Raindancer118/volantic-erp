@@ -4,6 +4,10 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-09 `fix(db)` (b9891fb) — make Flyway versions globally unique across modules
+  - Spring Boot aggregates all db/migration/<module> locations into ONE flyway_schema_history, so versions must be globally unique — crm V001 collided with security V001 and broke every Flyway-booting IT (only surfaced in CI, since those ITs are Docker-skipped locally)
+  - convention: one hundreds-block per module (security V0xx, crm V1xx, catalog V2xx, ...); renamed crm migrations to V101/V102/V103
+  - documented in CLAUDE.md 
 - 2026-06-09 `feat(crm)` (846195e) — address and contact aggregates (owner-referenced)
   - Address and Contact as small aggregates owned by a partner via a typed flat PartnerRef (PartnerType + UUID) — no polymorphic JPA association, matching the DB-architecture flat tables
   - full hexagonal slices with REST v1 /v1/crm/addresses and /v1/crm/contacts (CRUD incl. DELETE; owner-scoped list via query params)
