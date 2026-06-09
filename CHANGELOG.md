@@ -4,6 +4,11 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-09 `feat(api)` (268abb2) — paginate all CRM list endpoints
+  - customers/suppliers/addresses/contacts list endpoints now take Pageable (default size 50, page/size/sort query params) and return a stable PageResponse envelope instead of unbounded arrays — protects the sub-500 ms NFR as data grows
+  - new core.web.PageResponse DTO (no direct Spring Page serialization)
+  - ports/services/adapters return Spring Data Page
+  - tests: contract envelope shape + Postgres slicing IT 
 - 2026-06-09 `feat(core)` (77bfb60) — customer 360 view via entity-link graph
   - new generic entity-link graph in the core (OPEN) module — the 360 foundation (DB arch §5.3): EntityLinkRegistry public API + EntityRef/EntityLink VOs, hexagonal (service, store port, JPA adapter), idempotent edges with a unique constraint
   - REST v1 GET /v1/core/entities/{type}/{id}/links (outgoing|incoming) for the cockpit, gated by core.entity:read
