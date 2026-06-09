@@ -4,6 +4,12 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-09 `feat(core)` (77bfb60) — customer 360 view via entity-link graph
+  - new generic entity-link graph in the core (OPEN) module — the 360 foundation (DB arch §5.3): EntityLinkRegistry public API + EntityRef/EntityLink VOs, hexagonal (service, store port, JPA adapter), idempotent edges with a unique constraint
+  - REST v1 GET /v1/core/entities/{type}/{id}/links (outgoing|incoming) for the cockpit, gated by core.entity:read
+  - maintained via domain events: crm publishes PartnerContact/Address Linked/Unlinked; a synchronous AFTER_COMMIT listener records crm.customer/supplier HAS_CONTACT/HAS_ADDRESS edges (no async event-registry schema, deterministically testable)
+  - Flyway core.entity_link (V901; created_at timestamptz<->OffsetDateTime)
+  - tests: VO, service, persistence IT, controller contract, synchronizer mapping, service event publication 
 - 2026-06-09 `fix(crm)` (bc880a2) — address.country_code varchar to match JPA mapping; add Flyway version guard test
   - ddl-auto=validate rejected crm.address.country_code declared CHAR(2) (bpchar) while the JPA String maps to varchar — changed the column to VARCHAR(2)
   - the original Flyway version collision had masked this until the rename
