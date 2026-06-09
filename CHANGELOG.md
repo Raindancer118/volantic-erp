@@ -4,6 +4,12 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-09 `feat(catalog)` (e12f7e7) — products and multi-level bills of materials
+  - Product aggregate with SKU/name/Money list price and CRUD use cases behind catalog.product permissions
+  - Versioned, immutable BOMs whose lines reference component products by id (multi-level); createBom validates product+component existence and (product,version) uniqueness
+  - REST v1 /v1/catalog/products and nested /boms with RFC 7807 errors (404/409/400)
+  - Flyway catalog/V201 schema (product, bom, bom_line element collection) in the V2xx hundreds-block with GoBD tracking columns
+  - Domain, service, REST-contract and Testcontainers persistence tests 
 - 2026-06-09 `feat(audit)` (170b6d8) — tamper-evident hash-chained audit trail
   - new audit module (schema audit, append-only audit_log): each entry's SHA-256 hash chains over the previous entry's hash + canonical content, so altering or removing any past entry is detectable
   - AuditTrail public API (record); hexagonal: domain AuditEntry (hashing), AuditService (advisory-locked append + chain verification), JPA adapter using a Postgres transaction-level advisory lock to serialize appends
