@@ -4,6 +4,10 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-09 `fix(crm)` (bc880a2) — address.country_code varchar to match JPA mapping; add Flyway version guard test
+  - ddl-auto=validate rejected crm.address.country_code declared CHAR(2) (bpchar) while the JPA String maps to varchar — changed the column to VARCHAR(2)
+  - the original Flyway version collision had masked this until the rename
+  - add FlywayMigrationVersionsTest: a Docker-free unit test asserting globally-unique migration versions, so the collision class can't recur unnoticed locally 
 - 2026-06-09 `fix(db)` (b9891fb) — make Flyway versions globally unique across modules
   - Spring Boot aggregates all db/migration/<module> locations into ONE flyway_schema_history, so versions must be globally unique — crm V001 collided with security V001 and broke every Flyway-booting IT (only surfaced in CI, since those ITs are Docker-skipped locally)
   - convention: one hundreds-block per module (security V0xx, crm V1xx, catalog V2xx, ...); renamed crm migrations to V101/V102/V103
