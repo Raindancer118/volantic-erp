@@ -4,6 +4,12 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-09 `feat(core)` (aa71c7a) — JPA auditing + GoBD tracking columns on all tables
+  - AbstractEntity now carries created_at/created_by/modified_at/modified_by (DB arch §3, by-design GoBD traceability)
+  - timestamps via Hibernate @CreationTimestamp/@UpdateTimestamp (always populated, incl. @DataJpaTest slices); created_by/modified_by via Spring Data @CreatedBy/@LastModifiedBy from the OIDC subject (nullable for system flows), enabled by JpaAuditingConfig
+  - additive Flyway migrations add the columns to every entity table (security V002, crm V104, core V903); the role_permission join table is intentionally excluded
+  - entity_link's own created_at field removed in favour of the inherited audit column
+  - IT asserts timestamps populated on insert 
 - 2026-06-09 `feat(core)` (bd94efd) — GoBD gap-free number ranges
   - core.number_range with a pessimistic-write-locked counter (SELECT ... FOR UPDATE) so concurrent allocations serialize and a rollback rolls the counter back too — gap-free GoBD numbering (DB arch §5.1)
   - NumberRanges public API (defineRange idempotent, next), hexagonal: domain NumberRange (prefix + zero-padded value), service, store port, JPA adapter
