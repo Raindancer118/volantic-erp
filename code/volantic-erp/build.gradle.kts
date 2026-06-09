@@ -43,6 +43,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
 
+    // --- Cache: Redis für Stammdaten / Autorisierungs-Snapshots (NFR sub-500 ms) ---
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+    implementation("org.springframework.boot:spring-boot-starter-cache")
+
     // --- Spring Modulith: Modulgrenzen, transaktionale Domain-Events, Beobachtbarkeit ---
     implementation("org.springframework.modulith:spring-modulith-starter-core")
     runtimeOnly("org.springframework.modulith:spring-modulith-actuator")

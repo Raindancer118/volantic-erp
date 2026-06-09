@@ -97,6 +97,21 @@ Alle Skills liegen unter `.claude/skills/`. Einmal pro Session laden, dann per n
 
 Scopes: `security`, `stammdaten`, `lager`, `verkauf`, `hr`, `buchhaltung`, `core`, `api`, `sdk`, `workflow`, `rbac`, `belege`, `db`, `build`, `ci`
 
+## Changelog (bei jedem Commit pflegen)
+
+`CHANGELOG.md` (Projekt-Root) wird für **jede** Änderung aktualisiert — newest first. Nicht manuell editieren, sondern das Skript nutzen (fügt Datum + Hash automatisch ein, kein Lesen der Datei nötig):
+
+```bash
+scripts/changelog.sh "<type(scope)>" "<one-line summary>" [commit-hash]
+# commit-hash optional → Default: aktueller HEAD-Short-Hash
+```
+
+Nach jedem Commit: Eintrag mit dem Commit-Hash erzeugen und `CHANGELOG.md` committen (`docs(changelog)`-Commit; reine Changelog-Commits brauchen keinen eigenen Eintrag).
+
+## Code-Sprache
+
+Code (Klassen, Methoden, Variablen, Code-Kommentare/Javadoc) wird **auf Englisch** geschrieben. Doku (CLAUDE.md, ADRs, Project.md) bleibt deutsch; Kommunikation deutsch.
+
 ## Nicht-funktionale Leitplanken (NFR — von Tag 1)
 
 - **Sub-500 ms** für jede Standard-Interaktion (CI-Gate: Last-/Latenztest)
