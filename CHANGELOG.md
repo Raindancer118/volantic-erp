@@ -4,6 +4,18 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-09 `feat(crm)` (846195e) — address and contact aggregates (owner-referenced)
+  - Address and Contact as small aggregates owned by a partner via a typed flat PartnerRef (PartnerType + UUID) — no polymorphic JPA association, matching the DB-architecture flat tables
+  - full hexagonal slices with REST v1 /v1/crm/addresses and /v1/crm/contacts (CRUD incl. DELETE; owner-scoped list via query params)
+  - Flyway crm.address + crm.contact with owner indexes
+  - tests: domain, Testcontainers IT (owner scoping, update/delete), @WebMvcTest contracts
+  - crm module now complete: customer, supplier, address, contact 
+- 2026-06-09 `feat(crm)` (4fc9807) — supplier aggregate + REST v1
+  - Supplier as its own aggregate root (sibling to Customer; they diverge soon — no premature shared base)
+  - full hexagonal slice: domain, Customer-parallel service with @PreAuthorize (crm.supplier:*), JPA adapter, REST v1 /v1/crm/suppliers
+  - shared CrmNotFoundException/CrmConflictException bases so the RFC-7807 handler covers every CRM entity (DRY)
+  - Flyway crm.supplier
+  - tests: domain, service, Testcontainers IT, @WebMvcTest contract 
 - 2026-06-09 `feat(crm)` (8709f63) — M1 customer vertical slice with REST v1
   - new crm module (DB-architecture schema split: crm is the first module, catalog follows)
   - hexagonal: pure Customer aggregate owns identity; CustomerService enforces authz at the service boundary (@PreAuthorize, ADR-0004); JPA adapter; REST v1 under /v1/crm/customers (POST/GET/PUT/list) with RFC-7807 errors
