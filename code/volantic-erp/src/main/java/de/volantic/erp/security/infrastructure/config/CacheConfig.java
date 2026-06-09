@@ -40,7 +40,9 @@ class CacheConfig implements CachingConfigurer {
                 CacheNames.USER_PERMISSIONS,
                 RedisCacheConfiguration.defaultCacheConfig()
                         .entryTtl(USER_PERMISSIONS_TTL)
-                        .disableCachingNullValues()
+                        // Null values ARE cached (negative caching) to shield the DB from repeated
+                        // lookups of valid-but-unmirrored subjects; staleness is bounded by the TTL
+                        // and cleared by write-side eviction.
                         .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(serializer)));
     }
 

@@ -75,13 +75,13 @@ class UserGraphCacheCachingTest {
     }
 
     @Test
-    void unknownSubjectIsNotCached() {
+    void unknownSubjectIsNegativeCachedToProtectTheDatabase() {
         when(userRepository.findWithRolesByOidcSubject("ghost")).thenReturn(Optional.empty());
 
         assertThat(cache.load("ghost")).isNull();
         assertThat(cache.load("ghost")).isNull();
 
-        // unknown subjects must not be negative-cached (unless = "#result == null")
-        verify(userRepository, times(2)).findWithRolesByOidcSubject("ghost");
+        // null result is cached too, so repeated lookups of an unmirrored subject don't hit the DB
+        verify(userRepository, times(1)).findWithRolesByOidcSubject("ghost");
     }
 }

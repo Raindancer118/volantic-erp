@@ -9,11 +9,16 @@ import org.springframework.stereotype.Component;
  * which keeps the authorization hot path within the sub-500 ms budget (NFR).
  *
  * <p>The actual DB read uses {@code findWithRolesByOidcSubject} (single query via {@code @EntityGraph}),
- * so even a cache miss is N+1-free. Unknown subjects return {@code null} and are <em>not</em> cached
- * ({@code unless}), to avoid filling the cache with bogus keys.
+ * so even a cache miss is N+1-free.
  *
- * <p>TODO: explicit eviction once a write side exists (role/assignment changes). Until then the short
- * TTL in {@code CacheConfig} bounds staleness.
+ * <p>Unknown subjects ({@code null}) are <strong>also cached</strong> on purpose: a validly signed but
+ * not-yet-mirrored OIDC subject would otherwise hit the database on every request, which an attacker
+ * holding any valid token could abuse to bypass the cache. Negative caching shields the database; the
+ * short TTL in {@code CacheConfig} bounds staleness, and the write side evicts the entry once a user is
+ * provisioned.
+ *
+ * <p>TODO: explicit eviction once a write side exists (role/assignment changes). Until then the TTL in
+ * {@code CacheConfig} bounds staleness.
  */
 @Component
 class UserGraphCache {
@@ -24,7 +29,7 @@ class UserGraphCache {
         this.users = users;
     }
 
-    @Cacheable(cacheNames = CacheNames.USER_PERMISSIONS, key = "#oidcSubject", unless = "#result == null")
+    @Cacheable(cacheNames = CacheNames.USER_PERMISSIONS, key = "#oidcSubject")
     public CachedUser load(String oidcSubject) {
         return users.findWithRolesByOidcSubject(oidcSubject).map(CachedUser::from).orElse(null);
     }
