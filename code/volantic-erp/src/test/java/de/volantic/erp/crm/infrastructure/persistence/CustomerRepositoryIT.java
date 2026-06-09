@@ -32,6 +32,19 @@ class CustomerRepositoryIT {
     @Autowired
     private CustomerRepository repository;
 
+    @Autowired
+    private CustomerJpaRepository jpa;
+
+    @Test
+    void auditTimestampsArePopulatedOnInsert() {
+        Customer customer = Customer.create("C-2001", "Audited GmbH", null);
+        repository.save(customer);
+
+        CustomerEntity entity = jpa.findById(customer.id().value()).orElseThrow();
+        assertThat(entity.getCreatedAt()).isNotNull();
+        assertThat(entity.getModifiedAt()).isNotNull();
+    }
+
     @Test
     void savesLoadsAndUpdatesCustomer() {
         Customer customer = Customer.create("C-1001", "ACME GmbH", "info@acme.de");

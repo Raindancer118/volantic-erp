@@ -1,19 +1,27 @@
 package de.volantic.erp.core;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.PostLoad;
 import jakarta.persistence.PostPersist;
 import jakarta.persistence.Transient;
 import jakarta.persistence.Version;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /**
- * Common base of all JPA aggregates: an application-assigned {@link UuidV7} id plus optimistic
- * locking via {@code version}.
+ * Common base of all JPA aggregates: an application-assigned {@link UuidV7} id, optimistic locking via
+ * {@code version}, and GoBD audit/tracking columns ({@code created_at/by}, {@code modified_at/by})
+ * populated automatically by Spring Data JPA auditing (DB architecture §3, by-design traceability).
  *
  * <p>The id is assigned up front for <em>new</em> aggregates (via {@link #AbstractEntity(boolean)}),
  * so keys are fixed before insert and the id is never {@code null} once observed. Crucially, the
@@ -24,8 +32,15 @@ import java.util.UUID;
  * <p>Because the id is non-null for new aggregates, Spring Data cannot detect "new" by a null id;
  * {@link Persistable} is therefore implemented with a transient {@code isNew} flag (the standard
  * pattern for assigned ids): {@code true} until the first persist/load, {@code false} afterwards.
+ *
+ * <p>The {@code created_at/modified_at} timestamps are filled by Hibernate ({@link CreationTimestamp}/
+ * {@link UpdateTimestamp}), so they are always populated — including inside {@code @DataJpaTest} slices
+ * that don't load the auditing config. The {@code created_by/modified_by} columns are filled by Spring
+ * Data auditing (activated by {@code JpaAuditingConfig}) with the acting OIDC subject and are nullable
+ * (left null for unauthenticated/system flows). Timestamps map to {@code timestamptz}.
  */
 @MappedSuperclass
+@EntityListeners(AuditingEntityListener.class)
 public abstract class AbstractEntity implements Persistable<UUID> {
 
     @Id
@@ -35,6 +50,22 @@ public abstract class AbstractEntity implements Persistable<UUID> {
     @Version
     @Column(name = "version", nullable = false)
     private Long version;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private OffsetDateTime createdAt;
+
+    @CreatedBy
+    @Column(name = "created_by", updatable = false)
+    private String createdBy;
+
+    @UpdateTimestamp
+    @Column(name = "modified_at", nullable = false)
+    private OffsetDateTime modifiedAt;
+
+    @LastModifiedBy
+    @Column(name = "modified_by")
+    private String modifiedBy;
 
     @Transient
     private boolean isNew;
@@ -68,6 +99,22 @@ public abstract class AbstractEntity implements Persistable<UUID> {
 
     public Long getVersion() {
         return version;
+    }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public String getCreatedBy() {
+        return createdBy;
+    }
+
+    public OffsetDateTime getModifiedAt() {
+        return modifiedAt;
+    }
+
+    public String getModifiedBy() {
+        return modifiedBy;
     }
 
     @Override

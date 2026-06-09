@@ -6,12 +6,11 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 
-import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /**
- * JPA representation of a directed entity-link edge. Table {@code core.entity_link}. {@code created_at}
- * is an {@link OffsetDateTime} to match the {@code timestamptz} column under {@code ddl-auto=validate}.
+ * JPA representation of a directed entity-link edge. Table {@code core.entity_link}. The {@code created_at}
+ * column is the inherited audit timestamp from {@link AbstractEntity} (populated by JPA auditing).
  */
 @Entity
 @Table(schema = "core", name = "entity_link")
@@ -32,9 +31,6 @@ class EntityLinkEntity extends AbstractEntity {
     @Column(name = "link_type", nullable = false, updatable = false)
     private String linkType;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private OffsetDateTime createdAt;
-
     protected EntityLinkEntity() {
     }
 
@@ -45,7 +41,6 @@ class EntityLinkEntity extends AbstractEntity {
         this.toType = toType;
         this.toId = toId;
         this.linkType = linkType;
-        this.createdAt = OffsetDateTime.now();
     }
 
     String fromType() {
