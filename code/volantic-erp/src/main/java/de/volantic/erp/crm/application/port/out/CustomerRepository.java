@@ -2,8 +2,9 @@ package de.volantic.erp.crm.application.port.out;
 
 import de.volantic.erp.crm.domain.model.Customer;
 import de.volantic.erp.crm.domain.model.CustomerId;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -18,5 +19,5 @@ public interface CustomerRepository {
 
     boolean existsByCustomerNumber(String customerNumber);
 
-    List<Customer> findAll();
+    Page<Customer> findAll(Pageable pageable);
 }

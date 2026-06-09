@@ -4,9 +4,10 @@ import de.volantic.erp.crm.application.port.out.AddressRepository;
 import de.volantic.erp.crm.domain.model.Address;
 import de.volantic.erp.crm.domain.model.AddressId;
 import de.volantic.erp.crm.domain.model.PartnerRef;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
 import java.util.Optional;
 
 /** Outbound adapter for {@link AddressRepository}: maps between domain {@link Address} and JPA. */
@@ -35,8 +36,8 @@ class AddressRepositoryAdapter implements AddressRepository {
     }
 
     @Override
-    public List<Address> findByOwner(PartnerRef owner) {
-        return jpa.findByOwnerTypeAndOwnerId(owner.type(), owner.id()).stream().map(this::toDomain).toList();
+    public Page<Address> findByOwner(PartnerRef owner, Pageable pageable) {
+        return jpa.findByOwnerTypeAndOwnerId(owner.type(), owner.id(), pageable).map(this::toDomain);
     }
 
     @Override

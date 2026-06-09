@@ -42,6 +42,6 @@ class SupplierRepositoryIT {
         repository.save(loaded);
 
         assertThat(repository.findById(supplier.id()).orElseThrow().name()).isEqualTo("Globex Corp");
-        assertThat(repository.findAll()).hasSize(1);
+        assertThat(repository.findAll(org.springframework.data.domain.Pageable.unpaged()).getTotalElements()).isEqualTo(1);
     }
 }

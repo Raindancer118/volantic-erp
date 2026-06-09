@@ -3,11 +3,11 @@ package de.volantic.erp.crm.application;
 import de.volantic.erp.crm.application.port.out.SupplierRepository;
 import de.volantic.erp.crm.domain.model.Supplier;
 import de.volantic.erp.crm.domain.model.SupplierId;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 /** Supplier use cases. Authorization is enforced here at the service boundary (ADR-0004). */
 @Service
@@ -36,8 +36,8 @@ public class SupplierService {
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasPermission(null, 'crm.supplier:read')")
-    public List<Supplier> listSuppliers() {
-        return suppliers.findAll();
+    public Page<Supplier> listSuppliers(Pageable pageable) {
+        return suppliers.findAll(pageable);
     }
 
     @Transactional

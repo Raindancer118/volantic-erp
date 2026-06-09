@@ -1,11 +1,14 @@
 package de.volantic.erp.crm.api;
 
+import de.volantic.erp.core.web.PageResponse;
 import de.volantic.erp.crm.application.AddressService;
 import de.volantic.erp.crm.domain.model.Address;
 import de.volantic.erp.crm.domain.model.AddressId;
 import de.volantic.erp.crm.domain.model.PartnerRef;
 import de.volantic.erp.crm.domain.model.PartnerType;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,7 +22,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
-import java.util.List;
 import java.util.UUID;
 
 /** REST v1 endpoints for partner addresses. {@link AddressService} enforces authorization. */
@@ -50,9 +52,11 @@ class AddressController {
 
     /** Lists addresses of one owner, e.g. {@code GET /v1/crm/addresses?ownerType=CUSTOMER&ownerId=...}. */
     @GetMapping
-    List<AddressResponse> listByOwner(@RequestParam PartnerType ownerType, @RequestParam UUID ownerId) {
-        return addresses.listAddresses(PartnerRef.of(ownerType, ownerId)).stream()
-                .map(AddressResponse::from).toList();
+    PageResponse<AddressResponse> listByOwner(@RequestParam PartnerType ownerType,
+                                              @RequestParam UUID ownerId,
+                                              @PageableDefault(size = 50) Pageable pageable) {
+        return PageResponse.of(
+                addresses.listAddresses(PartnerRef.of(ownerType, ownerId), pageable), AddressResponse::from);
     }
 
     @PutMapping("/{id}")
