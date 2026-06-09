@@ -4,6 +4,10 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-09 `chore(repo)` (94e85ec) — remove Claude/AI tooling files from the repository
+  - removed .claude/ (settings + skills), CLAUDE.md, .mcp.json and the .github/workflows/skill-review.yml workflow (used anthropics/claude-code-action)
+  - .gitignore now ignores .claude/ and .mcp.json as local tooling config
+  - the standard build/test CI (ci.yml) is unaffected 
 - 2026-06-09 `feat(core)` (6820bdc) — durable domain events (Modulith Outbox) + full-context smoke test
   - add spring-modulith-starter-jdbc: domain-event publications are persisted in the event_publication registry (Outbox) before delivery and marked complete after, surviving a crash
   - Flyway public.event_publication (V904; JDBC registry resolves the unqualified table via search_path)

@@ -1,5 +1,9 @@
-# Projekt-interne Notizen für Claude — nicht committen (CLAUDE.md)
+# Projekt-interne Notizen — nicht committen
 Project.md
+
+# Lokale Tooling-/Editor-Konfiguration (nicht committen)
+.claude/
+.mcp.json
 
 # Build-Artefakte
 code/volantic-erp/.gradle/
