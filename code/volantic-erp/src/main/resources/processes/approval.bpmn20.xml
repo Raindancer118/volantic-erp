@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://volantic.de/workflow">
+
+    <!--
+      Generic approval process (M0, Issue #5). A requester starts it for some subject (type + id); a
+      reviewer claims and completes the single "review" user task, setting the boolean variable
+      'approved'. An exclusive gateway routes to the approved or rejected end accordingly. The decision
+      is kept in process history (history-level: audit) so the status is queryable after the instance ends.
+    -->
+    <process id="approval" name="Approval" isExecutable="true">
+
+        <startEvent id="start"/>
+        <sequenceFlow id="toReview" sourceRef="start" targetRef="reviewApproval"/>
+
+        <userTask id="reviewApproval" name="Review approval" flowable:candidateGroups="approvers"/>
+        <sequenceFlow id="toDecision" sourceRef="reviewApproval" targetRef="decision"/>
+
+        <exclusiveGateway id="decision" name="Approved?" default="rejectedFlow"/>
+
+        <sequenceFlow id="approvedFlow" sourceRef="decision" targetRef="approvedEnd">
+            <conditionExpression xsi:type="tFormalExpression"
+                                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">${approved == true}</conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="rejectedFlow" sourceRef="decision" targetRef="rejectedEnd"/>
+
+        <endEvent id="approvedEnd" name="Approved"/>
+        <endEvent id="rejectedEnd" name="Rejected"/>
+
+    </process>
+</definitions>
