@@ -8,6 +8,14 @@ spring:
     username: ${DB_USER:volantic}
     password: ${DB_PASSWORD:changeme}
 
+  # Redis: cache for master data / authorization snapshots (NFR sub-500 ms). Shipped in the
+  # per-installation bundle (ADR-0005). Lettuce connects lazily, so the app boots even if Redis
+  # is briefly unavailable; cache errors degrade to the database (see CacheConfig).
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
   jpa:
     open-in-view: false           # deliberately off: no lazy loads in the view layer
     hibernate:

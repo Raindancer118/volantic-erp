@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import(UserDirectoryAdapter.class)
+@Import({UserGraphCache.class, UserDirectoryAdapter.class})
 @Testcontainers(disabledWithoutDocker = true)
 class SecurityPersistenceIT {
 
