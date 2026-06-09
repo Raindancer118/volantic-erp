@@ -49,6 +49,10 @@ dependencies {
 
     // --- Spring Modulith: Modulgrenzen, transaktionale Domain-Events, Beobachtbarkeit ---
     implementation("org.springframework.modulith:spring-modulith-starter-core")
+    // Durable event publication registry (Outbox): events are persisted before delivery and marked
+    // complete after, so they survive a crash. JDBC-based registry (no JPA entity → no coupling to
+    // Hibernate ddl-validate); the event_publication table is provided by Flyway.
+    implementation("org.springframework.modulith:spring-modulith-starter-jdbc")
     runtimeOnly("org.springframework.modulith:spring-modulith-actuator")
     runtimeOnly("org.springframework.modulith:spring-modulith-observability")
 

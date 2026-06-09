@@ -4,6 +4,11 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-09 `feat(core)` (6820bdc) — durable domain events (Modulith Outbox) + full-context smoke test
+  - add spring-modulith-starter-jdbc: domain-event publications are persisted in the event_publication registry (Outbox) before delivery and marked complete after, surviving a crash
+  - Flyway public.event_publication (V904; JDBC registry resolves the unqualified table via search_path)
+  - the 360 link synchronizer now uses @ApplicationModuleListener (durable, retried) instead of a synchronous listener; @EnableAsync activated
+  - new full-context ApplicationSmokeIT (Testcontainers) boots the entire app — web/security, JPA+Flyway, Redis cache config, event registry — catching wiring/schema issues the sliced tests cannot 
 - 2026-06-09 `feat(core)` (aa71c7a) — JPA auditing + GoBD tracking columns on all tables
   - AbstractEntity now carries created_at/created_by/modified_at/modified_by (DB arch §3, by-design GoBD traceability)
   - timestamps via Hibernate @CreationTimestamp/@UpdateTimestamp (always populated, incl. @DataJpaTest slices); created_by/modified_by via Spring Data @CreatedBy/@LastModifiedBy from the OIDC subject (nullable for system flows), enabled by JpaAuditingConfig
