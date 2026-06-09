@@ -3,11 +3,11 @@ package de.volantic.erp.crm.application;
 import de.volantic.erp.crm.application.port.out.CustomerRepository;
 import de.volantic.erp.crm.domain.model.Customer;
 import de.volantic.erp.crm.domain.model.CustomerId;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 /**
  * Customer use cases. Enforcement happens here at the service boundary (ADR-0004) via
@@ -40,8 +40,8 @@ public class CustomerService {
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasPermission(null, 'crm.customer:read')")
-    public List<Customer> listCustomers() {
-        return customers.findAll();
+    public Page<Customer> listCustomers(Pageable pageable) {
+        return customers.findAll(pageable);
     }
 
     @Transactional

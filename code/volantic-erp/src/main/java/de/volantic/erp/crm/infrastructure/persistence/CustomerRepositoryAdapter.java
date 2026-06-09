@@ -3,9 +3,10 @@ package de.volantic.erp.crm.infrastructure.persistence;
 import de.volantic.erp.crm.application.port.out.CustomerRepository;
 import de.volantic.erp.crm.domain.model.Customer;
 import de.volantic.erp.crm.domain.model.CustomerId;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -42,8 +43,8 @@ class CustomerRepositoryAdapter implements CustomerRepository {
     }
 
     @Override
-    public List<Customer> findAll() {
-        return jpa.findAll().stream().map(this::toDomain).toList();
+    public Page<Customer> findAll(Pageable pageable) {
+        return jpa.findAll(pageable).map(this::toDomain);
     }
 
     private Customer toDomain(CustomerEntity entity) {

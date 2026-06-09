@@ -7,6 +7,7 @@ import de.volantic.erp.crm.domain.model.AddressType;
 import de.volantic.erp.crm.domain.model.PartnerRef;
 import de.volantic.erp.crm.domain.model.PartnerType;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -61,13 +62,13 @@ class AddressControllerContractTest {
     }
 
     @Test
-    void listByOwnerReturns200() throws Exception {
+    void listByOwnerReturnsPagedEnvelope() throws Exception {
         UUID ownerId = UuidV7.randomUuid();
-        when(addressService.listAddresses(any())).thenReturn(List.of(Address.create(
-                PartnerRef.of(PartnerType.CUSTOMER, ownerId), AddressType.DEFAULT, "Main St 1", "20095", "Hamburg", "DE")));
+        when(addressService.listAddresses(any(), any())).thenReturn(new PageImpl<>(List.of(Address.create(
+                PartnerRef.of(PartnerType.CUSTOMER, ownerId), AddressType.DEFAULT, "Main St 1", "20095", "Hamburg", "DE"))));
 
         mvc.perform(get("/v1/crm/addresses").param("ownerType", "CUSTOMER").param("ownerId", ownerId.toString()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].city").value("Hamburg"));
+                .andExpect(jsonPath("$.content[0].city").value("Hamburg"));
     }
 }

@@ -15,3 +15,6 @@ code/volantic-erp/build/
 
 # OS
 .DS_Store
+
+# Analysis
+Findings.md

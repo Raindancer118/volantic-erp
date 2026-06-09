@@ -52,6 +52,19 @@ class CustomerRepositoryIT {
         assertThat(reloaded.name()).isEqualTo("ACME AG");
         assertThat(reloaded.email()).isEqualTo("contact@acme.de");
         assertThat(reloaded.customerNumber()).isEqualTo("C-1001");
-        assertThat(repository.findAll()).hasSize(1);
+        assertThat(repository.findAll(org.springframework.data.domain.Pageable.unpaged()).getTotalElements()).isEqualTo(1);
+    }
+
+    @Test
+    void findAllSlicesAndCountsTotal() {
+        for (int i = 1; i <= 3; i++) {
+            repository.save(Customer.create("P-" + i, "Partner " + i, null));
+        }
+
+        var firstPage = repository.findAll(org.springframework.data.domain.PageRequest.of(0, 2));
+
+        assertThat(firstPage.getContent()).hasSize(2);
+        assertThat(firstPage.getTotalElements()).isEqualTo(3);
+        assertThat(firstPage.getTotalPages()).isEqualTo(2);
     }
 }

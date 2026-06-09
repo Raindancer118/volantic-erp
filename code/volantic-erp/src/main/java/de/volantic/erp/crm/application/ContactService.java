@@ -7,11 +7,11 @@ import de.volantic.erp.crm.domain.model.Contact;
 import de.volantic.erp.crm.domain.model.ContactId;
 import de.volantic.erp.crm.domain.model.PartnerRef;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 /** Contact use cases. Authorization enforced here at the service boundary (ADR-0004). */
 @Service
@@ -41,8 +41,8 @@ public class ContactService {
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasPermission(null, 'crm.contact:read')")
-    public List<Contact> listContacts(PartnerRef owner) {
-        return contacts.findByOwner(owner);
+    public Page<Contact> listContacts(PartnerRef owner, Pageable pageable) {
+        return contacts.findByOwner(owner, pageable);
     }
 
     @Transactional
