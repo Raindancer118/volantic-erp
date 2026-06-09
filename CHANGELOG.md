@@ -4,6 +4,11 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-09 `feat(core)` (bd94efd) — GoBD gap-free number ranges
+  - core.number_range with a pessimistic-write-locked counter (SELECT ... FOR UPDATE) so concurrent allocations serialize and a rollback rolls the counter back too — gap-free GoBD numbering (DB arch §5.1)
+  - NumberRanges public API (defineRange idempotent, next), hexagonal: domain NumberRange (prefix + zero-padded value), service, store port, JPA adapter
+  - Flyway core.number_range (V902)
+  - tests: domain formatting, service orchestration, Postgres allocation IT 
 - 2026-06-09 `feat(api)` (268abb2) — paginate all CRM list endpoints
   - customers/suppliers/addresses/contacts list endpoints now take Pageable (default size 50, page/size/sort query params) and return a stable PageResponse envelope instead of unbounded arrays — protects the sub-500 ms NFR as data grows
   - new core.web.PageResponse DTO (no direct Spring Page serialization)
