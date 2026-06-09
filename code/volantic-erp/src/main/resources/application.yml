@@ -34,6 +34,7 @@ spring:
       - classpath:db/migration/core
       - classpath:db/migration/security
       - classpath:db/migration/crm
+      - classpath:db/migration/audit
 
   # RFC 7807 problem+json for errors (incl. bean-validation failures), consistent across modules.
   mvc:
