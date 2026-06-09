@@ -4,6 +4,11 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-09 `feat(security)` (76689ab) — administrative write side with cache eviction
+  - new SecurityAdmin API (root): definePermission, defineRole, provisionUser (idempotent), setUserStatus, assignRole
+  - application SecurityAdminService orchestrates use cases; SecurityWriteStore outbound port persists via JPA in the adapter
+  - authorization cache is evicted AFTER commit (TransactionSynchronization) per affected subject — role permission changes clear the whole cache; provisioning clears a prior negative-cache entry
+  - tests: service unit (idempotency/delegation), adapter eviction (in-memory cache), Postgres roundtrip IT (define -> provision -> assign -> read, disable revokes) 
 - 2026-06-09 `fix(security)` (b28f2b6) — negative-cache unmirrored OIDC subjects to shield the database
   - previously unless=#result==null skipped caching unknown subjects, so a validly signed but not-yet-mirrored subject hit the DB on every request (cache-bypass / DoS lever, Findings.md)
   - now null results are cached too (removed unless + disableCachingNullValues); TTL bounds staleness and the write side will evict on provisioning 
