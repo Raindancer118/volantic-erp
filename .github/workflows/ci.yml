@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Build/Test/ArchUnit-Gate. Der Runner hat Docker → Testcontainers-Integrationstests
+# (SecurityPersistenceIT, echtes PostgreSQL) laufen voll durch, kein H2-Mock.
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: code/volantic-erp
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+
+      - name: Build, Test, ArchUnit & Modulith-Verify
+        run: ./gradlew check --no-daemon --console=plain
+
+      - name: Testberichte als Artefakt sichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: code/volantic-erp/build/reports/tests/
+          retention-days: 7
+          if-no-files-found: ignore

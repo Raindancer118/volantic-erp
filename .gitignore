@@ -1,0 +1,17 @@
+# Projekt-interne Notizen für Claude — nicht committen (CLAUDE.md)
+Project.md
+
+# Build-Artefakte
+code/volantic-erp/.gradle/
+code/volantic-erp/build/
+.kotlin/
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+
+# OS
+.DS_Store

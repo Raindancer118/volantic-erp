@@ -1,0 +1,41 @@
+spring:
+  application:
+    name: volantic-erp
+
+  # Single-Tenant: eine PostgreSQL-DB pro Kunde (siehe docs/02-Datenbank-Architektur.md).
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/volantic_erp}
+    username: ${DB_USER:volantic}
+    password: ${DB_PASSWORD:changeme}
+
+  jpa:
+    open-in-view: false           # bewusst aus: keine Lazy-Loads im View-Layer
+    hibernate:
+      ddl-auto: validate          # Schema gehört Flyway, niemals Hibernate-Auto-DDL
+    properties:
+      hibernate.format_sql: true
+
+  # Flyway je Modul: jedes Fachmodul bringt seine Migrationen mit (db/migration/<modul>).
+  flyway:
+    enabled: true
+    default-schema: core
+    locations:
+      - classpath:db/migration/core
+      - classpath:db/migration/security
+
+  # Authentik als OIDC-Provider — ERP ist reiner Resource Server (validiert JWTs).
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OIDC_ISSUER_URI:https://auth.volantic.de/application/o/volantic-erp/}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, modulith
+  endpoint:
+    health:
+      probes:
+        enabled: true
