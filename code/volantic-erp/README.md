@@ -8,9 +8,14 @@ Modularer Monolith auf **Spring Boot + Spring Modulith + jMolecules** (ADR-0001)
 ```
 src/main/java/de/volantic/erp/
 ├── VolanticErpApplication.java   # @Modulithic Einstiegspunkt
-├── core/                         # Shared Kernel (OPEN-Modul): Geld/Menge, Belegnummern,
-│                                 #   entity_link-Graph, Basistypen
-└── security/                     # RBAC + OIDC-Identitätsspiegel (Authentik)
+├── core/                         # Shared Kernel (OPEN-Modul): Geld/Menge (measure),
+│                                 #   Belegnummernkreise (numberrange), entity_link-Graph,
+│                                 #   AbstractEntity/Auditing, Modulith-Event-Registry, Basistypen
+├── security/                     # RBAC + OIDC-Identitätsspiegel (Authentik)
+├── crm/                          # Stammdaten/CRM (M1): Kunde, Lieferant, Adresse, Kontakt + Kunden-360°
+├── catalog/                      # Artikel/Produkte + versionierte, mehrstufige Stücklisten (BOM)
+├── audit/                        # Manipulationsevidenter, hash-verketteter Audit-Trail (GoBD/NIS2)
+└── workflow/                     # BPMN-Workflow-Engine-Kern (Flowable): generischer Genehmigungsprozess
 ```
 
 **Fachliche Module = Packages**, nicht Gradle-Subprojekte. Spring Modulith erkennt jedes direkte
@@ -22,11 +27,14 @@ gibt es erst für publizierte Artefakte — zuerst `volantic-erp-sdk` (das SPI) 
 
 1. Neues Package `de.volantic.erp.<modul>` mit `package-info.java` und
    `@org.springframework.modulith.ApplicationModule(displayName = "…")`.
-2. Interne Implementierung in ein Sub-Package legen, das nicht Teil der exponierten API ist
-   (Konvention: `internal`); nur die im Modul-Root liegenden Typen sind für andere Module sichtbar.
+2. Hexagonal innerhalb des Moduls schneiden (Konvention im gesamten Code, ADR-0001):
+   `domain/` (reiner Kern, keine Spring-/JPA-Abhängigkeit) · `application/` (Use-Cases + `port/out`) ·
+   `infrastructure/` (JPA-Adapter, Engine-Adapter, Config) · `api/` (REST-Controller + DTOs). Die
+   ArchUnit-Regeln in `ArchitectureTest` erzwingen diese Schichtung.
 3. Cross-Modul-Kommunikation über Domain-Events (Spring Modulith Event Publication Registry) oder die
-   exponierte API — niemals direkter Zugriff auf interne Typen.
-4. Migrationen unter `src/main/resources/db/migration/<modul>/` ablegen und die Flyway-`locations` in
+   exponierte API — niemals direkter Zugriff auf interne Infrastruktur-Typen.
+4. Migrationen unter `src/main/resources/db/migration/<modul>/` ablegen (eigener Versions-Hunderterblock,
+   global eindeutig — siehe `FlywayMigrationVersionsTest`) und die Flyway-`locations` in
    `application.yml` ergänzen.
 
 ## Bauen & Prüfen
