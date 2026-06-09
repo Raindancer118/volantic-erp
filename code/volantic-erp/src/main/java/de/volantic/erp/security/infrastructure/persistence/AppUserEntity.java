@@ -2,6 +2,7 @@ package de.volantic.erp.security.infrastructure.persistence;
 
 import de.volantic.erp.core.AbstractEntity;
 import de.volantic.erp.security.AccessScope;
+import de.volantic.erp.security.domain.model.UserStatus;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -53,6 +54,10 @@ class AppUserEntity extends AbstractEntity {
 
     String oidcSubject() {
         return oidcSubject;
+    }
+
+    UserStatus status() {
+        return status;
     }
 
     Set<UserRoleEntity> roleAssignments() {

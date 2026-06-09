@@ -14,10 +14,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 class UserAuthorizationTest {
 
     private User userWith(AccessScope scope, String... permissionKeys) {
+        return userWith(UserStatus.ACTIVE, scope, permissionKeys);
+    }
+
+    private User userWith(UserStatus status, AccessScope scope, String... permissionKeys) {
         Set<Permission> perms = Set.of(permissionKeys).stream().map(Permission::new)
                 .collect(java.util.stream.Collectors.toSet());
         Role role = new Role("hr-mgr", perms);
-        return new User("sub-1", List.of(new RoleAssignment(role, scope)));
+        return new User("sub-1", status, List.of(new RoleAssignment(role, scope)));
     }
 
     @Test
@@ -53,5 +57,13 @@ class UserAuthorizationTest {
 
         assertThat(user.permissionKeys())
                 .containsExactlyInAnyOrder("hr.salary:read", "hr.employee:read");
+    }
+
+    @Test
+    void gesperrterNutzerHatTrotzRolleKeineRechte() {
+        User user = userWith(UserStatus.DISABLED, AccessScope.GLOBAL, "hr.salary:read");
+
+        assertThat(user.isPermitted("hr.salary:read", AccessScope.GLOBAL)).isFalse();
+        assertThat(user.permissionKeys()).isEmpty();
     }
 }

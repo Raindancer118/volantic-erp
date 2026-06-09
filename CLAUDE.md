@@ -15,7 +15,7 @@
 
 | Package | Fachmodul | Reihenfolge |
 |---------|-----------|-------------|
-| `iam` | Auth, RBAC, Rollen, Rechte (Authentik-OIDC) | M0 – zuerst |
+| `security` | Auth, RBAC, Rollen, Rechte (Authentik-OIDC) | M0 – zuerst |
 | `stammdaten` | Kunden (CRM), Lieferanten, Artikel | M1 |
 | `lager` | Bestände, Warenbewegungen, Lagerplätze | M3 |
 | `verkauf` | Angebote, Aufträge, Rechnungen | M4 |
@@ -95,7 +95,7 @@ Alle Skills liegen unter `.claude/skills/`. Einmal pro Session laden, dann per n
 <footer> — Fixes #<issue>
 ```
 
-Scopes: `iam`, `stammdaten`, `lager`, `verkauf`, `hr`, `buchhaltung`, `core`, `api`, `sdk`, `workflow`, `rbac`, `belege`, `db`, `build`, `ci`
+Scopes: `security`, `stammdaten`, `lager`, `verkauf`, `hr`, `buchhaltung`, `core`, `api`, `sdk`, `workflow`, `rbac`, `belege`, `db`, `build`, `ci`
 
 ## Nicht-funktionale Leitplanken (NFR — von Tag 1)
 

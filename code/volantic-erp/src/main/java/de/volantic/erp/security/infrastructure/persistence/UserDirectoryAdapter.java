@@ -36,7 +36,7 @@ class UserDirectoryAdapter implements UserDirectory {
         List<RoleAssignment> assignments = entity.roleAssignments().stream()
                 .map(a -> new RoleAssignment(toDomain(a.role()), a.scope()))
                 .toList();
-        return new User(entity.oidcSubject(), assignments);
+        return new User(entity.oidcSubject(), entity.status(), assignments);
     }
 
     private static Role toDomain(RoleEntity role) {

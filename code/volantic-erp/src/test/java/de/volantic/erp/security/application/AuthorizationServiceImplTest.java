@@ -6,6 +6,7 @@ import de.volantic.erp.security.domain.model.Permission;
 import de.volantic.erp.security.domain.model.Role;
 import de.volantic.erp.security.domain.model.RoleAssignment;
 import de.volantic.erp.security.domain.model.User;
+import de.volantic.erp.security.domain.model.UserStatus;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -29,7 +30,7 @@ class AuthorizationServiceImplTest {
 
     private User userWith(String permissionKey, AccessScope scope) {
         Role role = new Role("hr-mgr", Set.of(new Permission(permissionKey)));
-        return new User("sub-1", List.of(new RoleAssignment(role, scope)));
+        return new User("sub-1", UserStatus.ACTIVE, List.of(new RoleAssignment(role, scope)));
     }
 
     @Test
@@ -52,7 +53,7 @@ class AuthorizationServiceImplTest {
     @Test
     void permissionsOfListetAlleSchluessel() {
         Role role = new Role("hr-mgr", Set.of(new Permission("hr.salary:read"), new Permission("hr.employee:read")));
-        directoryReturns(new User("sub-1", List.of(new RoleAssignment(role, AccessScope.GLOBAL))));
+        directoryReturns(new User("sub-1", UserStatus.ACTIVE, List.of(new RoleAssignment(role, AccessScope.GLOBAL))));
 
         assertThat(service.permissionsOf("sub-1"))
                 .containsExactlyInAnyOrder("hr.salary:read", "hr.employee:read");

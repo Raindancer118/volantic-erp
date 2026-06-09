@@ -24,11 +24,19 @@ spring:
       - classpath:db/migration/security
 
   # Authentik als OIDC-Provider — ERP ist reiner Resource Server (validiert JWTs).
+  # Self-hosted-Modell: jede Kundeninstallation liefert ihren EIGENEN Authentik mit (ADR-0005);
+  # die Defaults unten sind nur unser Dev-/Demo-Issuer und werden pro Installation per Env
+  # (OIDC_ISSUER_URI / OIDC_JWK_SET_URI) auf den mitgelieferten Authentik des Kunden überschrieben.
   security:
     oauth2:
       resourceserver:
         jwt:
+          # issuer-uri allein würde die OIDC-Discovery beim Start synchron von Authentik laden —
+          # ist Authentik dann nicht erreichbar, bootet das ERP nicht. Mit zusätzlich gesetztem
+          # jwk-set-uri baut Spring einen lazy Decoder (JWKS erst beim ersten Request), validiert
+          # den Issuer aber weiterhin. So bootet die App auch bei kurzzeitig nicht erreichbarem IdP.
           issuer-uri: ${OIDC_ISSUER_URI:https://auth.volantic.de/application/o/volantic-erp/}
+          jwk-set-uri: ${OIDC_JWK_SET_URI:https://auth.volantic.de/application/o/volantic-erp/jwks/}
 
 management:
   endpoints:
