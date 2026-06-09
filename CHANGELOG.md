@@ -4,6 +4,13 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-09 `feat(crm)` (8709f63) — M1 customer vertical slice with REST v1
+  - new crm module (DB-architecture schema split: crm is the first module, catalog follows)
+  - hexagonal: pure Customer aggregate owns identity; CustomerService enforces authz at the service boundary (@PreAuthorize, ADR-0004); JPA adapter; REST v1 under /v1/crm/customers (POST/GET/PUT/list) with RFC-7807 errors
+  - AbstractEntity gains an externally-assigned-id constructor so the domain owns identity
+  - Flyway crm schema; ProblemDetails enabled
+  - tests: domain, service, Testcontainers persistence IT, @WebMvcTest contract
+  - ArchUnit + Modulith validate the new module automatically 
 - 2026-06-09 `feat(security)` (76689ab) — administrative write side with cache eviction
   - new SecurityAdmin API (root): definePermission, defineRole, provisionUser (idempotent), setUserStatus, assignRole
   - application SecurityAdminService orchestrates use cases; SecurityWriteStore outbound port persists via JPA in the adapter
