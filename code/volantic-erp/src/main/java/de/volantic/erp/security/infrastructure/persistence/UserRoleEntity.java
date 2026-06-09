@@ -37,6 +37,7 @@ class UserRoleEntity extends AbstractEntity {
     }
 
     UserRoleEntity(AppUserEntity user, RoleEntity role, AccessScope scope) {
+        super(true);
         this.user = user;
         this.role = role;
         if (scope != null && !scope.isGlobal()) {

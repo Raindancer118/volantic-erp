@@ -22,6 +22,9 @@ spring:
       ddl-auto: validate          # the schema belongs to Flyway, never Hibernate auto-DDL
     properties:
       hibernate.format_sql: true
+      # Safety net against accidental N+1 on associations not covered by an explicit @EntityGraph:
+      # Hibernate batches lazy loads instead of issuing one query per parent.
+      hibernate.default_batch_fetch_size: 100
 
   # Flyway per module: each business module ships its own migrations (db/migration/<module>).
   flyway:

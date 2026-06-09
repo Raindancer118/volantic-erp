@@ -20,6 +20,7 @@ class PermissionEntity extends AbstractEntity {
     }
 
     PermissionEntity(String key, String description) {
+        super(true);
         this.key = key;
         this.description = description;
     }

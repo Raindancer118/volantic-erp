@@ -36,6 +36,7 @@ class RoleEntity extends AbstractEntity {
     }
 
     RoleEntity(String key, String name) {
+        super(true);
         this.key = key;
         this.name = name;
     }

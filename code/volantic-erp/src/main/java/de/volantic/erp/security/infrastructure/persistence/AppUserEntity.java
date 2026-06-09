@@ -43,6 +43,7 @@ class AppUserEntity extends AbstractEntity {
     }
 
     AppUserEntity(String oidcSubject, String username, String email) {
+        super(true);
         this.oidcSubject = oidcSubject;
         this.username = username;
         this.email = email;
