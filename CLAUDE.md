@@ -34,7 +34,9 @@ Querschnitt: `workflow`, `belege`, `reporting`, `audit`, `sdk` (PF4J-Plugins)
 
 ## Datenbank
 
-- PostgreSQL · **Flyway je Modul** (`db/migration/<modul>/`)
+- PostgreSQL · **Flyway je Modul** (`db/migration/<modul>/`), beim Start in **eine** `flyway_schema_history` aggregiert
+- **Versionen global eindeutig** (sonst bricht Flyway ab). Konvention: pro Modul ein Hunderter-Block —
+  `security` `V0xx`, `crm` `V1xx`, `catalog` `V2xx`, `lager` `V3xx`, `verkauf` `V4xx`, `hr` `V5xx`, `buchhaltung` `V6xx`, `core` `V9xx`
 - Schema-Änderungen nur additiv (neue Spalten zuerst, alte erst N-2 droppen)
 - Single-Tenant-Instanz als Default; Schema-per-Tenant als SaaS-Option
 
