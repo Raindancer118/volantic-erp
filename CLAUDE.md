@@ -16,7 +16,8 @@
 | Package | Fachmodul | Reihenfolge |
 |---------|-----------|-------------|
 | `security` | Auth, RBAC, Rollen, Rechte (Authentik-OIDC) | M0 – zuerst |
-| `stammdaten` | Kunden (CRM), Lieferanten, Artikel | M1 |
+| `crm` | Kunden, Kontakte, Lieferanten, Adressen | M1 – „erstes Modul" |
+| `catalog` | Artikel/Produkte, Stücklisten (BOM ab Tag 1) | M1/M2 |
 | `lager` | Bestände, Warenbewegungen, Lagerplätze | M3 |
 | `verkauf` | Angebote, Aufträge, Rechnungen | M4 |
 | `hr` | Personalakten, Urlaub, Arbeitszeit | M5 |
@@ -95,7 +96,7 @@ Alle Skills liegen unter `.claude/skills/`. Einmal pro Session laden, dann per n
 <footer> — Fixes #<issue>
 ```
 
-Scopes: `security`, `stammdaten`, `lager`, `verkauf`, `hr`, `buchhaltung`, `core`, `api`, `sdk`, `workflow`, `rbac`, `belege`, `db`, `build`, `ci`
+Scopes: `security`, `crm`, `catalog`, `lager`, `verkauf`, `hr`, `buchhaltung`, `core`, `api`, `sdk`, `workflow`, `rbac`, `belege`, `db`, `build`, `ci`
 
 ## Changelog (bei jedem Commit pflegen)
 

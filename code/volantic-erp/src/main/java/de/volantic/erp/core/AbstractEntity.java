@@ -49,7 +49,15 @@ public abstract class AbstractEntity implements Persistable<UUID> {
      * subclasses call {@code super(true)}.
      */
     protected AbstractEntity(boolean newEntity) {
-        this.id = UuidV7.randomUuid();
+        this(UuidV7.randomUuid());
+    }
+
+    /**
+     * Business constructor for an externally assigned id (e.g. when the pure domain owns identity and
+     * the JPA entity merely mirrors it). Marks the aggregate as new.
+     */
+    protected AbstractEntity(UUID id) {
+        this.id = id;
         this.isNew = true;
     }
 

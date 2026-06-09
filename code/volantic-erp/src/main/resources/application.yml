@@ -33,6 +33,12 @@ spring:
     locations:
       - classpath:db/migration/core
       - classpath:db/migration/security
+      - classpath:db/migration/crm
+
+  # RFC 7807 problem+json for errors (incl. bean-validation failures), consistent across modules.
+  mvc:
+    problemdetails:
+      enabled: true
 
   # Authentik as the OIDC provider — the ERP is a pure resource server (validates JWTs).
   # Self-hosted model: every customer installation ships its OWN Authentik (ADR-0005); the defaults
