@@ -31,12 +31,12 @@ class BomRepositoryAdapter implements BomRepository {
 
     @Override
     public boolean existsByProductIdAndVersion(ProductId productId, int version) {
-        return jpa.existsByProductIdAndVersion(productId.value(), version);
+        return jpa.existsByProductIdAndBomVersion(productId.value(), version);
     }
 
     @Override
     public List<Bom> findByProductId(ProductId productId) {
-        return jpa.findByProductIdOrderByVersionAsc(productId.value()).stream()
+        return jpa.findByProductIdOrderByBomVersionAsc(productId.value()).stream()
                 .map(BomEntity::toDomain)
                 .toList();
     }

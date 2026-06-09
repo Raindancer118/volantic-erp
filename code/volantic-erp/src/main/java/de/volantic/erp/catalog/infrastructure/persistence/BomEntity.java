@@ -29,7 +29,7 @@ class BomEntity extends AbstractEntity {
     private UUID productId;
 
     @Column(name = "bom_version", nullable = false, updatable = false)
-    private int version;
+    private int bomVersion;
 
     @Column(name = "valid_from", updatable = false)
     private LocalDate validFrom;
@@ -47,7 +47,7 @@ class BomEntity extends AbstractEntity {
     private BomEntity(Bom bom) {
         super(bom.id().value());
         this.productId = bom.productId().value();
-        this.version = bom.version();
+        this.bomVersion = bom.version();
         this.validFrom = bom.validFrom();
         this.validTo = bom.validTo();
         for (BomLine line : bom.lines()) {
@@ -66,6 +66,6 @@ class BomEntity extends AbstractEntity {
                         new ProductId(row.componentId()),
                         Quantity.of(row.qtyAmount(), new UnitOfMeasure(row.qtyUnit()))))
                 .toList();
-        return Bom.reconstitute(new BomId(getId()), new ProductId(productId), version, validFrom, validTo, domainLines);
+        return Bom.reconstitute(new BomId(getId()), new ProductId(productId), bomVersion, validFrom, validTo, domainLines);
     }
 }

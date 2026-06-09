@@ -7,7 +7,7 @@ import java.util.UUID;
 
 interface BomJpaRepository extends JpaRepository<BomEntity, UUID> {
 
-    boolean existsByProductIdAndVersion(UUID productId, int version);
+    boolean existsByProductIdAndBomVersion(UUID productId, int bomVersion);
 
-    List<BomEntity> findByProductIdOrderByVersionAsc(UUID productId);
+    List<BomEntity> findByProductIdOrderByBomVersionAsc(UUID productId);
 }
