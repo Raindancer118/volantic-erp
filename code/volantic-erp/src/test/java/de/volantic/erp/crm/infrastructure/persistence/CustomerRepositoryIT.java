@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Import;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -35,10 +36,17 @@ class CustomerRepositoryIT {
     @Autowired
     private CustomerJpaRepository jpa;
 
+    @Autowired
+    private TestEntityManager em;
+
     @Test
     void auditTimestampsArePopulatedOnInsert() {
         Customer customer = Customer.create("C-2001", "Audited GmbH", null);
         repository.save(customer);
+
+        // flush the INSERT and detach, so the reload reads the persisted row (timestamps written)
+        em.flush();
+        em.clear();
 
         CustomerEntity entity = jpa.findById(customer.id().value()).orElseThrow();
         assertThat(entity.getCreatedAt()).isNotNull();
