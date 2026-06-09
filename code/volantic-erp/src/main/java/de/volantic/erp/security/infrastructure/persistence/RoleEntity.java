@@ -45,6 +45,15 @@ class RoleEntity extends AbstractEntity {
         permissions.add(permission);
     }
 
+    void rename(String newName) {
+        this.name = newName;
+    }
+
+    void replacePermissions(Set<PermissionEntity> newPermissions) {
+        permissions.clear();
+        permissions.addAll(newPermissions);
+    }
+
     String key() {
         return key;
     }

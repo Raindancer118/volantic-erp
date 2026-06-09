@@ -53,6 +53,10 @@ class AppUserEntity extends AbstractEntity {
         roleAssignments.add(new UserRoleEntity(this, role, scope));
     }
 
+    void changeStatus(UserStatus newStatus) {
+        this.status = newStatus;
+    }
+
     String oidcSubject() {
         return oidcSubject;
     }
