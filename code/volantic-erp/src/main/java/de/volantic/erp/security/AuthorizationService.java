@@ -3,24 +3,24 @@ package de.volantic.erp.security;
 import java.util.Set;
 
 /**
- * Zentraler Autorisierungs-Port (ADR-0004). <strong>Jede</strong> Zugriffsentscheidung im System
- * läuft über diese Schnittstelle — an der Domänen-/Service-Grenze, nicht nur im UI.
+ * Central authorization port (ADR-0004). <strong>Every</strong> access decision in the system goes
+ * through this interface — at the domain/service boundary, not only in the UI.
  *
- * <p>Heute dahinter: RBAC (Rolle → Permission) plus Feld- und Instanz-/Scope-Ebene. Wächst die
- * Policy-Komplexität (HR, Accounting), wird eine Policy-Engine hinter denselben Port gezogen, ohne
- * dass ein Aufrufer sich ändert. Die Schnittstelle darf additiv wachsen, aber nie verengt werden.
+ * <p>Behind it today: RBAC (role → permission) plus field and instance/scope level. As policy
+ * complexity grows (HR, accounting), a policy engine is pulled behind the same port without any
+ * caller changing. The interface may grow additively but must never be narrowed.
  *
- * <p>Berechtigungen sind {@code resource:action}-Strings, z. B. {@code "hr.salary:read"} oder
- * {@code "sales.order:approve"}. Sensible Felder bekommen eine eigene Permission.
+ * <p>Permissions are {@code resource:action} strings, e.g. {@code "hr.salary:read"} or
+ * {@code "sales.order:approve"}. Sensitive fields get their own permission.
  */
 public interface AuthorizationService {
 
-    /** Hält der Nutzer die Berechtigung global (uneingeschränkt)? */
+    /** Does the user hold the permission globally (unrestricted)? */
     boolean isPermitted(String oidcSubject, String permission);
 
-    /** Hält der Nutzer die Berechtigung im angefragten {@link AccessScope}? */
+    /** Does the user hold the permission in the requested {@link AccessScope}? */
     boolean isPermitted(String oidcSubject, String permission, AccessScope scope);
 
-    /** Alle Berechtigungs-Schlüssel des Nutzers (über alle Rollen, unabhängig vom Scope). */
+    /** All permission keys of the user (across all roles, regardless of scope). */
     Set<String> permissionsOf(String oidcSubject);
 }

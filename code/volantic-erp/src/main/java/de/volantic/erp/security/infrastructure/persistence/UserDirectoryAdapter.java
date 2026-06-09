@@ -13,9 +13,9 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * Outbound-Adapter für {@link UserDirectory}: lädt den Nutzer-Graph in einer Abfrage
- * ({@code findWithRolesByOidcSubject}) und mappt das JPA-Aggregat auf die reine Domäne. Damit kennt
- * die Domäne keine Persistenz, und der Autorisierungs-Hotpath bleibt frei von N+1.
+ * Outbound adapter for {@link UserDirectory}: loads the user graph in one query
+ * ({@code findWithRolesByOidcSubject}) and maps the JPA aggregate onto the pure domain. This keeps the
+ * domain free of persistence and the authorization hot path free of N+1.
  */
 @Component
 class UserDirectoryAdapter implements UserDirectory {

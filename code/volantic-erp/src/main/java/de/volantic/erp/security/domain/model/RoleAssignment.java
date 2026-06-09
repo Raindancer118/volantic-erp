@@ -3,9 +3,9 @@ package de.volantic.erp.security.domain.model;
 import de.volantic.erp.security.AccessScope;
 
 /**
- * Zuweisung einer {@link Role} an einen {@link User}, optional auf einen Daten-{@link AccessScope}
- * eingeschränkt. Eine globale Zuweisung ({@link AccessScope#GLOBAL}) deckt jeden Scope ab; eine
- * scoped Zuweisung deckt nur ihren exakten Scope ab und keine globale Anfrage.
+ * Assignment of a {@link Role} to a {@link User}, optionally restricted to a data {@link AccessScope}.
+ * A global assignment ({@link AccessScope#GLOBAL}) covers every scope; a scoped assignment covers
+ * only its exact scope and no global request.
  */
 public final class RoleAssignment {
 
@@ -17,7 +17,7 @@ public final class RoleAssignment {
         this.scope = scope == null ? AccessScope.GLOBAL : scope;
     }
 
-    /** Gewährt diese Zuweisung die Berechtigung im angefragten Scope? */
+    /** Does this assignment grant the permission in the requested scope? */
     public boolean grants(String permission, AccessScope requested) {
         return covers(requested) && role.grants(permission);
     }

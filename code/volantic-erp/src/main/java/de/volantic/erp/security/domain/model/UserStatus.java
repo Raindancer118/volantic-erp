@@ -1,8 +1,8 @@
 package de.volantic.erp.security.domain.model;
 
 /**
- * Status eines gespiegelten Nutzers. Authentifizierung selbst liegt bei Authentik (OIDC); dieser
- * Status steuert, ob der Nutzer im ERP überhaupt Berechtigungen ausüben darf.
+ * Status of a mirrored user. Authentication itself stays with Authentik (OIDC); this status controls
+ * whether the user may exercise any permissions in the ERP at all.
  */
 public enum UserStatus {
     ACTIVE,

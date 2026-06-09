@@ -12,7 +12,7 @@ import jakarta.persistence.Table;
 import java.util.HashSet;
 import java.util.Set;
 
-/** JPA-Abbild einer Rolle samt Berechtigungen. Tabelle {@code security.role}. */
+/** JPA representation of a role with its permissions. Table {@code security.role}. */
 @Entity
 @Table(schema = "security", name = "role")
 class RoleEntity extends AbstractEntity {

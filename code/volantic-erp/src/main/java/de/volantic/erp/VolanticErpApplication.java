@@ -5,12 +5,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.modulith.Modulithic;
 
 /**
- * Einstiegspunkt des Volantic-ERP-Modulith.
+ * Entry point of the Volantic ERP modulith.
  *
- * <p>Die fachlichen Bausteine liegen als Spring-Modulith-Anwendungsmodule in den direkten
- * Sub-Packages dieses Packages (z. B. {@code core}, {@code security}). Ihre Grenzen werden über
- * {@link org.springframework.modulith.core.ApplicationModules#verify()} (siehe
- * {@code ModularityTests}) als CI-Gate erzwungen — nicht über Gradle-Subprojekte.
+ * The business building blocks live as Spring Modulith application modules in the direct
+ * sub-packages of this package (e.g. {@code core}, {@code security}). Their boundaries are enforced
+ * via {@link org.springframework.modulith.core.ApplicationModules#verify()} (see
+ * {@code ModularityTests}) as a CI gate — not via Gradle sub-projects.
  */
 @Modulithic(systemName = "Volantic ERP")
 @SpringBootApplication

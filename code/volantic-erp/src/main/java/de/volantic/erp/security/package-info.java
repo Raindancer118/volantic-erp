@@ -1,10 +1,10 @@
 /**
- * <strong>Security / RBAC</strong> — rollenbasierte Zugriffssteuerung und Identitäts-Spiegel.
+ * <strong>Security / RBAC</strong> — role-based access control and identity mirror.
  *
- * <p>Spiegelt Identitäten aus dem externen OIDC-Provider (Authentik, {@code auth.volantic.de}) — es
- * liegen <em>keine Passwörter</em> in der ERP-DB, nur der OIDC-Subject-Bezug. Verwaltet Rollen,
- * Berechtigungen und deren Zuordnung (feingranular, GoBD/NIS2-tauglich). Andere Module fragen
- * Berechtigungen ausschließlich über die hier exponierte API ab.
+ * <p>Mirrors identities from the external OIDC provider (Authentik, bundled per installation) — there
+ * are <em>no passwords</em> in the ERP database, only the OIDC subject reference. Manages roles,
+ * permissions and their assignment (fine-grained, GoBD/NIS2-ready). Other modules query permissions
+ * exclusively through the API exposed here.
  */
 @org.springframework.modulith.ApplicationModule(displayName = "Security / RBAC")
 package de.volantic.erp.security;

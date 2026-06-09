@@ -3,8 +3,8 @@ package de.volantic.erp.security.domain.model;
 import java.util.Set;
 
 /**
- * Eine Rolle bündelt {@link Permission}s; Nutzer erhalten Rollen (ggf. scoped) zugewiesen.
- * Reines Domänen-Aggregat ohne Persistenz-Belang.
+ * A role bundles {@link Permission}s; users are assigned roles (optionally scoped). Pure domain
+ * aggregate without any persistence concern.
  */
 public final class Role {
 
@@ -25,6 +25,6 @@ public final class Role {
     }
 
     public Set<Permission> permissions() {
-        return permissions; // bereits unveränderlich (Set.copyOf)
+        return permissions; // already immutable (Set.copyOf)
     }
 }

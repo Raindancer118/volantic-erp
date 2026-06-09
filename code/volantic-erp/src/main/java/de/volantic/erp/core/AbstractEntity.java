@@ -13,20 +13,20 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Gemeinsame Basis aller JPA-Aggregate: anwendungsseitig vergebene {@link UuidV7}-ID plus
- * optimistisches Sperren über {@code version}.
+ * Common base of all JPA aggregates: an application-assigned {@link UuidV7} id plus optimistic
+ * locking via {@code version}.
  *
- * <p>Da die ID schon im Konstruktor gesetzt wird (nie {@code null}), kann Spring Data ein neues
- * Aggregat nicht mehr an einer {@code null}-ID erkennen. Deshalb wird {@link Persistable} mit einem
- * transienten {@code isNew}-Flag implementiert (Standardmuster für zugewiesene IDs): {@code true} bis
- * zum ersten Persist/Load, danach {@code false} — so wird sauber zwischen INSERT und UPDATE getrennt.
+ * <p>Because the id is already set in the constructor (never {@code null}), Spring Data can no longer
+ * detect a new aggregate by a {@code null} id. Therefore {@link Persistable} is implemented with a
+ * transient {@code isNew} flag (the standard pattern for assigned ids): {@code true} until the first
+ * persist/load, {@code false} afterwards — cleanly separating INSERT from UPDATE.
  */
 @MappedSuperclass
 public abstract class AbstractEntity implements Persistable<UUID> {
 
     @Id
     @Column(name = "id", nullable = false, updatable = false)
-    private UUID id = UuidV7.randomUuid(); // beim Laden aus der DB von Hibernate überschrieben
+    private UUID id = UuidV7.randomUuid(); // overwritten by Hibernate when loaded from the DB
 
     @Version
     @Column(name = "version", nullable = false)

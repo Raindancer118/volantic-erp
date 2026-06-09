@@ -5,10 +5,9 @@ import de.volantic.erp.security.domain.model.User;
 import java.util.Optional;
 
 /**
- * Outbound-Port: liefert den gespiegelten {@link User} samt seinem vollständigen Rollen-/Rechte-Graph
- * zu einem OIDC-Subject. Die Implementierung (infrastructure) ist dafür verantwortlich, den Graph in
- * <em>einer</em> Abfrage zu laden (kein N+1 auf dem Autorisierungs-Hotpath) und auf die reine Domäne
- * zu mappen.
+ * Outbound port: provides the mirrored {@link User} together with its full role/permission graph for
+ * an OIDC subject. The implementation (infrastructure) is responsible for loading the graph in
+ * <em>one</em> query (no N+1 on the authorization hot path) and mapping it onto the pure domain.
  */
 public interface UserDirectory {
 

@@ -16,8 +16,8 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * JPA-Abbild des gespiegelten Nutzers. Trägt <strong>kein Passwort</strong> — nur den
- * OIDC-Subject-Bezug zu Authentik. Tabelle {@code security.app_user}.
+ * JPA representation of the mirrored user. Carries <strong>no password</strong> — only the OIDC
+ * subject reference to Authentik. Table {@code security.app_user}.
  */
 @Entity
 @Table(schema = "security", name = "app_user")

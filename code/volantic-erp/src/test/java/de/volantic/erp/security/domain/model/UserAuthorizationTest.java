@@ -7,10 +7,11 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Reine Domänen-Tests der RBAC-/Scope-Entscheidung — ohne Spring, ohne Datenbank. */
+/** Pure domain tests of the RBAC/scope decision — no Spring, no database. */
 class UserAuthorizationTest {
 
     private User userWith(AccessScope scope, String... permissionKeys) {
@@ -19,13 +20,13 @@ class UserAuthorizationTest {
 
     private User userWith(UserStatus status, AccessScope scope, String... permissionKeys) {
         Set<Permission> perms = Set.of(permissionKeys).stream().map(Permission::new)
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(Collectors.toSet());
         Role role = new Role("hr-mgr", perms);
         return new User("sub-1", status, List.of(new RoleAssignment(role, scope)));
     }
 
     @Test
-    void globaleZuweisungGewaehrtBerechtigung() {
+    void globalAssignmentGrantsPermission() {
         User user = userWith(AccessScope.GLOBAL, "hr.salary:read");
 
         assertThat(user.isPermitted("hr.salary:read", AccessScope.GLOBAL)).isTrue();
@@ -33,26 +34,26 @@ class UserAuthorizationTest {
     }
 
     @Test
-    void scopedZuweisungDecktNurIhrenScope() {
-        UUID abteilungA = UuidV7.randomUuid();
-        UUID abteilungB = UuidV7.randomUuid();
-        User user = userWith(AccessScope.of("DEPT", abteilungA), "hr.salary:read");
+    void scopedAssignmentCoversOnlyItsScope() {
+        UUID departmentA = UuidV7.randomUuid();
+        UUID departmentB = UuidV7.randomUuid();
+        User user = userWith(AccessScope.of("DEPT", departmentA), "hr.salary:read");
 
-        assertThat(user.isPermitted("hr.salary:read", AccessScope.of("DEPT", abteilungA))).isTrue();
-        assertThat(user.isPermitted("hr.salary:read", AccessScope.of("DEPT", abteilungB))).isFalse();
-        // eine globale Anfrage wird von einer scoped Zuweisung nicht gedeckt:
+        assertThat(user.isPermitted("hr.salary:read", AccessScope.of("DEPT", departmentA))).isTrue();
+        assertThat(user.isPermitted("hr.salary:read", AccessScope.of("DEPT", departmentB))).isFalse();
+        // a global request is not covered by a scoped assignment:
         assertThat(user.isPermitted("hr.salary:read", AccessScope.GLOBAL)).isFalse();
     }
 
     @Test
-    void globaleZuweisungDecktAuchScopedAnfrage() {
+    void globalAssignmentAlsoCoversScopedRequest() {
         User user = userWith(AccessScope.GLOBAL, "hr.salary:read");
 
         assertThat(user.isPermitted("hr.salary:read", AccessScope.of("DEPT", UuidV7.randomUuid()))).isTrue();
     }
 
     @Test
-    void permissionKeysListetAlleSchluessel() {
+    void permissionKeysListsAllKeys() {
         User user = userWith(AccessScope.GLOBAL, "hr.salary:read", "hr.employee:read");
 
         assertThat(user.permissionKeys())
@@ -60,7 +61,7 @@ class UserAuthorizationTest {
     }
 
     @Test
-    void gesperrterNutzerHatTrotzRolleKeineRechte() {
+    void disabledUserHasNoRightsDespiteRole() {
         User user = userWith(UserStatus.DISABLED, AccessScope.GLOBAL, "hr.salary:read");
 
         assertThat(user.isPermitted("hr.salary:read", AccessScope.GLOBAL)).isFalse();

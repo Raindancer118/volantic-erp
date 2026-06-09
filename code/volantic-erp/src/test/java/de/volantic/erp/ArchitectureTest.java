@@ -14,15 +14,16 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
- * CI-Gate für die <strong>hexagonale Architektur innerhalb jedes Moduls</strong> (CLAUDE.md, ADR-0001).
- * Die <em>Modulgrenzen</em> selbst (Spring Modulith) prüft {@link ModularityTests#verifiziertModulgrenzen()};
- * hier geht es um die Schichten domain → application → infrastructure/api innerhalb der Module.
+ * CI gate for the <strong>hexagonal architecture within each module</strong> (CLAUDE.md, ADR-0001).
+ * The <em>module boundaries</em> themselves (Spring Modulith) are checked by
+ * {@link ModularityTests#verifiesModuleBoundaries()}; this is about the layers
+ * domain → application → infrastructure/api within the modules.
  */
 @AnalyzeClasses(packages = "de.volantic.erp", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArchitectureTest {
 
     @ArchTest
-    static final ArchRule domain_kennt_keine_infrastruktur =
+    static final ArchRule domain_has_no_infrastructure =
             noClasses()
                     .that().resideInAPackage("..domain..")
                     .should().dependOnClassesThat()
@@ -33,48 +34,48 @@ class ArchitectureTest {
                             "org.springframework.data..",
                             "org.springframework.web..",
                             "org.springframework.stereotype..")
-                    .because("Die Domäne ist rein: keine Persistenz, kein Spring, keine Infrastruktur (Hexagonal)");
+                    .because("The domain is pure: no persistence, no Spring, no infrastructure (hexagonal)");
 
     @ArchTest
-    static final ArchRule application_kennt_keine_infrastruktur =
+    static final ArchRule application_has_no_infrastructure =
             noClasses()
                     .that().resideInAPackage("..application..")
                     .should().dependOnClassesThat()
                     .resideInAPackage("..infrastructure..")
-                    .because("Die Application-Schicht hängt nach innen (Domäne + Ports), nie an Infrastruktur");
+                    .because("The application layer depends inward (domain + ports), never on infrastructure");
 
     @ArchTest
-    static final ArchRule outbound_ports_sind_interfaces =
+    static final ArchRule outbound_ports_are_interfaces =
             classes()
                     .that().resideInAPackage("..application.port.out..")
                     .should().beInterfaces()
-                    .because("Outbound-Ports sind Interfaces — die Implementierung liegt in infrastructure");
+                    .because("Outbound ports are interfaces — the implementation lives in infrastructure");
 
     @ArchTest
-    static final ArchRule jpa_entities_nur_in_infrastructure =
+    static final ArchRule jpa_entities_only_in_infrastructure =
             classes()
                     .that().areAnnotatedWith(Entity.class).or().areAnnotatedWith(Table.class)
                     .should().resideInAPackage("..infrastructure.persistence..")
-                    .because("JPA-Entities sind Infrastruktur, nicht Domänen-Modell");
+                    .because("JPA entities are infrastructure, not the domain model");
 
     @ArchTest
-    static final ArchRule spring_data_repositories_nur_in_infrastructure =
+    static final ArchRule spring_data_repositories_only_in_infrastructure =
             classes()
                     .that().areAssignableTo(Repository.class).and().areInterfaces()
                     .should().resideInAPackage("..infrastructure.persistence..")
-                    .because("Spring-Data-Repositories gehören in die infrastructure.persistence-Schicht");
+                    .because("Spring Data repositories belong in the infrastructure.persistence layer");
 
     @ArchTest
-    static final ArchRule controller_nur_in_api =
+    static final ArchRule controllers_only_in_api =
             classes()
                     .that().areAnnotatedWith(RestController.class)
                     .should().resideInAPackage("..api..")
-                    .because("RestController gehören in das api-Package");
+                    .because("RestControllers belong in the api package");
 
     @ArchTest
-    static final ArchRule kein_service_in_api =
+    static final ArchRule no_service_in_api =
             noClasses()
                     .that().resideInAPackage("..api..")
                     .should().beAnnotatedWith(Service.class)
-                    .because("Keine @Service-Beans in der API-Schicht — Logik gehört in application");
+                    .because("No @Service beans in the API layer — logic belongs in application");
 }

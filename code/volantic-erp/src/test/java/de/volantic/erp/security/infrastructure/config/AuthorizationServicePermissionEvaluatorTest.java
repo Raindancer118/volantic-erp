@@ -13,7 +13,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/** Übersetzt {@code hasPermission(...)} korrekt auf den {@link AuthorizationService} — ohne Spring-Kontext. */
+/** Translates {@code hasPermission(...)} correctly onto the {@link AuthorizationService} — no Spring context. */
 class AuthorizationServicePermissionEvaluatorTest {
 
     private final AuthorizationService authorization = mock(AuthorizationService.class);
@@ -28,7 +28,7 @@ class AuthorizationServicePermissionEvaluatorTest {
     }
 
     @Test
-    void globaleAnfrageOhneScope() {
+    void globalRequestWithoutScope() {
         Authentication auth = authAs("sub-1");
         when(authorization.isPermitted("sub-1", "hr.employee:read")).thenReturn(true);
 
@@ -36,7 +36,7 @@ class AuthorizationServicePermissionEvaluatorTest {
     }
 
     @Test
-    void scopedAnfrageUeberTargetIdUndTyp() {
+    void scopedRequestViaTargetIdAndType() {
         Authentication auth = authAs("sub-1");
         UUID dept = UuidV7.randomUuid();
         when(authorization.isPermitted(eq("sub-1"), eq("hr.salary:read"), eq(AccessScope.of("DEPT", dept))))
@@ -46,7 +46,7 @@ class AuthorizationServicePermissionEvaluatorTest {
     }
 
     @Test
-    void scopedAnfrageUeberAccessScopeObjekt() {
+    void scopedRequestViaAccessScopeObject() {
         Authentication auth = authAs("sub-1");
         UUID dept = UuidV7.randomUuid();
         AccessScope scope = AccessScope.of("DEPT", dept);
@@ -56,7 +56,7 @@ class AuthorizationServicePermissionEvaluatorTest {
     }
 
     @Test
-    void nichtAuthentifiziertVerweigert() {
+    void notAuthenticatedIsDenied() {
         Authentication anonymous = mock(Authentication.class);
         when(anonymous.isAuthenticated()).thenReturn(false);
 

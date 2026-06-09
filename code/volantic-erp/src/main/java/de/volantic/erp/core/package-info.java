@@ -1,14 +1,14 @@
 /**
- * <strong>Core / Shared Kernel</strong> — modulübergreifend genutzte Fundament-Bausteine.
+ * <strong>Core / Shared Kernel</strong> — foundation building blocks used across modules.
  *
- * <p>Hier leben die plattformweiten Konzepte, die <em>alle</em> Fachmodule brauchen, ohne dass
- * dadurch eine fachliche Kopplung entsteht: Wertobjekte (Geld, Menge), Belegnummernkreise
- * (lückenlos, GoBD), der {@code entity_link}-Graph für das objektzentrierte 360°-Cockpit sowie
- * gemeinsame Basistypen (UUIDv7-IDs, Auditfelder).
+ * <p>This is where the platform-wide concepts live that <em>every</em> business module needs without
+ * introducing business coupling: value objects (money, quantity), document number ranges (gap-free,
+ * GoBD), the {@code entity_link} graph for the object-centric 360° cockpit, and shared base types
+ * (UUIDv7 ids, audit fields).
  *
- * <p>Als {@link org.springframework.modulith.ApplicationModule.Type#OPEN OPEN}-Modul deklariert:
- * andere Module dürfen auf die hier exponierten Typen zugreifen, ohne dass Spring Modulith das als
- * Grenzverletzung wertet. Fachmodule (crm, catalog, …) dürfen das <em>nicht</em> untereinander.
+ * <p>Declared as an {@link org.springframework.modulith.ApplicationModule.Type#OPEN OPEN} module:
+ * other modules may access the types exposed here without Spring Modulith treating it as a boundary
+ * violation. Business modules (crm, catalog, …) must <em>not</em> do this among each other.
  */
 @org.springframework.modulith.ApplicationModule(
         type = org.springframework.modulith.ApplicationModule.Type.OPEN,

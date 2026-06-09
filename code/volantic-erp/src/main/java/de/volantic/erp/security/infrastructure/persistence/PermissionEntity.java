@@ -5,7 +5,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 
-/** JPA-Abbild einer Berechtigung. Tabelle {@code security.permission}. */
+/** JPA representation of a permission. Table {@code security.permission}. */
 @Entity
 @Table(schema = "security", name = "permission")
 class PermissionEntity extends AbstractEntity {

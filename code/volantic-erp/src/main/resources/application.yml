@@ -2,20 +2,20 @@ spring:
   application:
     name: volantic-erp
 
-  # Single-Tenant: eine PostgreSQL-DB pro Kunde (siehe docs/02-Datenbank-Architektur.md).
+  # Single-tenant: one PostgreSQL database per customer (see docs/02-Datenbank-Architektur.md).
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/volantic_erp}
     username: ${DB_USER:volantic}
     password: ${DB_PASSWORD:changeme}
 
   jpa:
-    open-in-view: false           # bewusst aus: keine Lazy-Loads im View-Layer
+    open-in-view: false           # deliberately off: no lazy loads in the view layer
     hibernate:
-      ddl-auto: validate          # Schema gehört Flyway, niemals Hibernate-Auto-DDL
+      ddl-auto: validate          # the schema belongs to Flyway, never Hibernate auto-DDL
     properties:
       hibernate.format_sql: true
 
-  # Flyway je Modul: jedes Fachmodul bringt seine Migrationen mit (db/migration/<modul>).
+  # Flyway per module: each business module ships its own migrations (db/migration/<module>).
   flyway:
     enabled: true
     default-schema: core
@@ -23,18 +23,18 @@ spring:
       - classpath:db/migration/core
       - classpath:db/migration/security
 
-  # Authentik als OIDC-Provider — ERP ist reiner Resource Server (validiert JWTs).
-  # Self-hosted-Modell: jede Kundeninstallation liefert ihren EIGENEN Authentik mit (ADR-0005);
-  # die Defaults unten sind nur unser Dev-/Demo-Issuer und werden pro Installation per Env
-  # (OIDC_ISSUER_URI / OIDC_JWK_SET_URI) auf den mitgelieferten Authentik des Kunden überschrieben.
+  # Authentik as the OIDC provider — the ERP is a pure resource server (validates JWTs).
+  # Self-hosted model: every customer installation ships its OWN Authentik (ADR-0005); the defaults
+  # below are only our dev/demo issuer and are overridden per installation via env
+  # (OIDC_ISSUER_URI / OIDC_JWK_SET_URI) to point at the customer's bundled Authentik.
   security:
     oauth2:
       resourceserver:
         jwt:
-          # issuer-uri allein würde die OIDC-Discovery beim Start synchron von Authentik laden —
-          # ist Authentik dann nicht erreichbar, bootet das ERP nicht. Mit zusätzlich gesetztem
-          # jwk-set-uri baut Spring einen lazy Decoder (JWKS erst beim ersten Request), validiert
-          # den Issuer aber weiterhin. So bootet die App auch bei kurzzeitig nicht erreichbarem IdP.
+          # issuer-uri alone would load the OIDC discovery synchronously from Authentik at startup —
+          # if Authentik is then unreachable, the ERP does not boot. With jwk-set-uri also set, Spring
+          # builds a lazy decoder (JWKS fetched on the first request) while still validating the
+          # issuer. This lets the app boot even when the IdP is briefly unreachable.
           issuer-uri: ${OIDC_ISSUER_URI:https://auth.volantic.de/application/o/volantic-erp/}
           jwk-set-uri: ${OIDC_JWK_SET_URI:https://auth.volantic.de/application/o/volantic-erp/jwks/}
 

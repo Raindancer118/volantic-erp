@@ -1,9 +1,9 @@
 package de.volantic.erp.security.domain.model;
 
 /**
- * Eine atomare Berechtigung als {@code resource:action}-Schlüssel (z. B. {@code hr.salary:read}).
- * Reines Wertobjekt — Sensible Felder bekommen eine eigene Permission, so ist Feldgenauigkeit ohne
- * Zusatzmechanik möglich (ADR-0004).
+ * An atomic permission as a {@code resource:action} key (e.g. {@code hr.salary:read}). Pure value
+ * object — sensitive fields get their own permission, so field-level granularity is possible without
+ * extra machinery (ADR-0004).
  */
 public record Permission(String key) {
 

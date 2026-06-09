@@ -11,14 +11,14 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * Web-Security-Verdrahtung des ERP. Das ERP ist reiner <strong>OIDC-Resource-Server</strong>: jeder
- * Request trägt ein von Authentik ({@code auth.volantic.de}) signiertes JWT; der {@code sub}-Claim ist
- * das OIDC-Subject, über das der {@link de.volantic.erp.security.AuthorizationService} entscheidet.
+ * Web security wiring of the ERP. The ERP is a pure <strong>OIDC resource server</strong>: every
+ * request carries a JWT signed by Authentik (bundled per installation); the {@code sub} claim is the
+ * OIDC subject the {@link de.volantic.erp.security.AuthorizationService} decides on.
  *
- * <p>Bewusst: Actuator-Health/-Info (inkl. k8s-Liveness/Readiness-Probes) sind unauthentifiziert
- * erreichbar — sonst würden die Probes 401 erhalten. Alles andere erfordert ein gültiges Token.
- * Stateless (kein Session-Cookie) ⇒ CSRF deaktiviert. Methoden-Security ({@link EnableMethodSecurity})
- * ist aktiv, damit Enforcement an der Service-Grenze via {@code @PreAuthorize} greift (ADR-0004).
+ * <p>Deliberate: actuator health/info (including k8s liveness/readiness probes) are reachable
+ * unauthenticated — otherwise the probes would receive 401. Everything else requires a valid token.
+ * Stateless (no session cookie) ⇒ CSRF disabled. Method security ({@link EnableMethodSecurity}) is on
+ * so that enforcement happens at the service boundary via {@code @PreAuthorize} (ADR-0004).
  */
 @Configuration
 @EnableMethodSecurity
@@ -41,9 +41,9 @@ class WebSecurityConfig {
     }
 
     /**
-     * Hängt den projekteigenen {@link PermissionEvaluator} in die SpEL-Auswertung von
-     * {@code @PreAuthorize("hasPermission(...)")} ein, sodass jede Methoden-Autorisierung über den
-     * zentralen {@link de.volantic.erp.security.AuthorizationService} läuft.
+     * Plugs the project's own {@link PermissionEvaluator} into the SpEL evaluation of
+     * {@code @PreAuthorize("hasPermission(...)")}, so every method authorization runs through the
+     * central {@link de.volantic.erp.security.AuthorizationService}.
      */
     @Bean
     static MethodSecurityExpressionHandler methodSecurityExpressionHandler(PermissionEvaluator permissionEvaluator) {

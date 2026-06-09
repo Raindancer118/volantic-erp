@@ -20,12 +20,13 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Persistenz-Integrationstest gegen ein echtes PostgreSQL (Testcontainers). Validiert, dass die
- * JPA-Mappings zum Flyway-Schema passen ({@code ddl-auto=validate}), dass der {@link UserDirectoryAdapter}
- * korrekt auf die Domäne mappt und — als N+1-Guard — den Rollen-/Rechte-Graph in genau einer Abfrage lädt.
+ * Persistence integration test against a real PostgreSQL (Testcontainers). Validates that the JPA
+ * mappings match the Flyway schema ({@code ddl-auto=validate}), that the {@link UserDirectoryAdapter}
+ * maps onto the domain correctly, and — as an N+1 guard — that it loads the role/permission graph in
+ * exactly one query.
  *
- * <p>Ohne laufenden Docker-Daemon wird die Klasse übersprungen ({@code disabledWithoutDocker}); im CI
- * (Dorn-Runner mit Docker) läuft sie voll durch.
+ * <p>Without a running Docker daemon the class is skipped ({@code disabledWithoutDocker}); in CI
+ * (runner with Docker) it runs fully.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -53,8 +54,8 @@ class SecurityPersistenceIT {
     private EntityManagerFactory emf;
 
     @Test
-    void laedtNutzerGraphInEinerAbfrageUndMapptAufDomaene() {
-        PermissionEntity salaryRead = permissions.save(new PermissionEntity("hr.salary:read", "Gehalt lesen"));
+    void loadsUserGraphInOneQueryAndMapsToDomain() {
+        PermissionEntity salaryRead = permissions.save(new PermissionEntity("hr.salary:read", "Read salary"));
         RoleEntity hrManager = new RoleEntity("hr-mgr", "HR Manager");
         hrManager.addPermission(salaryRead);
         roles.save(hrManager);
@@ -63,7 +64,7 @@ class SecurityPersistenceIT {
         user.assignRole(hrManager, AccessScope.GLOBAL);
         em.persist(user);
 
-        // Persistenz-Kontext leeren, damit das Laden wirklich gegen die DB geht (sonst Cache-Treffer).
+        // Clear the persistence context so the load really hits the DB (otherwise a cache hit).
         em.flush();
         em.clear();
         Statistics stats = emf.unwrap(SessionFactory.class).getStatistics();
@@ -75,7 +76,7 @@ class SecurityPersistenceIT {
         assertThat(loaded.oidcSubject()).isEqualTo("oidc-subject-123");
         assertThat(loaded.permissionKeys()).containsExactly("hr.salary:read");
         assertThat(loaded.isPermitted("hr.salary:read", AccessScope.GLOBAL)).isTrue();
-        // N+1-Guard: Nutzer + Rollen + Permissions in genau einer SQL-Abfrage (@EntityGraph).
+        // N+1 guard: user + roles + permissions in exactly one SQL query (@EntityGraph).
         assertThat(stats.getPrepareStatementCount()).isEqualTo(1L);
     }
 }

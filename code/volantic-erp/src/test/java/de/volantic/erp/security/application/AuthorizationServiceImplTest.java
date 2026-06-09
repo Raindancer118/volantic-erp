@@ -18,7 +18,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/** Orchestrierungs-Tests des Service über den gemockten {@link UserDirectory}-Port — ohne Datenbank. */
+/** Orchestration tests of the service over the mocked {@link UserDirectory} port — no database. */
 class AuthorizationServiceImplTest {
 
     private final UserDirectory users = mock(UserDirectory.class);
@@ -34,7 +34,7 @@ class AuthorizationServiceImplTest {
     }
 
     @Test
-    void delegiertEntscheidungAnDieDomaene() {
+    void delegatesDecisionToTheDomain() {
         directoryReturns(userWith("hr.salary:read", AccessScope.GLOBAL));
 
         assertThat(service.isPermitted("sub-1", "hr.salary:read")).isTrue();
@@ -42,16 +42,16 @@ class AuthorizationServiceImplTest {
     }
 
     @Test
-    void unbekannterNutzerHatKeineRechte() {
+    void unknownUserHasNoRights() {
         when(users.findByOidcSubject(any())).thenReturn(Optional.empty());
 
-        assertThat(service.isPermitted("fremd", "hr.salary:read")).isFalse();
-        assertThat(service.isPermitted("fremd", "hr.salary:read", AccessScope.GLOBAL)).isFalse();
-        assertThat(service.permissionsOf("fremd")).isEmpty();
+        assertThat(service.isPermitted("stranger", "hr.salary:read")).isFalse();
+        assertThat(service.isPermitted("stranger", "hr.salary:read", AccessScope.GLOBAL)).isFalse();
+        assertThat(service.permissionsOf("stranger")).isEmpty();
     }
 
     @Test
-    void permissionsOfListetAlleSchluessel() {
+    void permissionsOfListsAllKeys() {
         Role role = new Role("hr-mgr", Set.of(new Permission("hr.salary:read"), new Permission("hr.employee:read")));
         directoryReturns(new User("sub-1", UserStatus.ACTIVE, List.of(new RoleAssignment(role, AccessScope.GLOBAL))));
 

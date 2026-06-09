@@ -12,8 +12,8 @@ import jakarta.persistence.Table;
 import java.util.UUID;
 
 /**
- * JPA-Abbild der Rollenzuweisung an einen Nutzer, optional auf einen Daten-Scope eingeschränkt.
- * Tabelle {@code security.user_role}; {@code scope_type == null} bedeutet global.
+ * JPA representation of a role assignment to a user, optionally restricted to a data scope.
+ * Table {@code security.user_role}; {@code scope_type == null} means global.
  */
 @Entity
 @Table(schema = "security", name = "user_role")
@@ -49,7 +49,7 @@ class UserRoleEntity extends AbstractEntity {
         return role;
     }
 
-    /** Rekonstruiert den Domänen-{@link AccessScope}; {@code null}-Scope-Typ ⇒ {@link AccessScope#GLOBAL}. */
+    /** Reconstructs the domain {@link AccessScope}; a {@code null} scope type ⇒ {@link AccessScope#GLOBAL}. */
     AccessScope scope() {
         return scopeType == null ? AccessScope.GLOBAL : AccessScope.of(scopeType, scopeId);
     }
