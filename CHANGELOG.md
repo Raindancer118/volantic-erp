@@ -4,6 +4,13 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-09 `feat(audit)` (170b6d8) — tamper-evident hash-chained audit trail
+  - new audit module (schema audit, append-only audit_log): each entry's SHA-256 hash chains over the previous entry's hash + canonical content, so altering or removing any past entry is detectable
+  - AuditTrail public API (record); hexagonal: domain AuditEntry (hashing), AuditService (advisory-locked append + chain verification), JPA adapter using a Postgres transaction-level advisory lock to serialize appends
+  - REST v1 GET /v1/audit/log (paged) + /v1/audit/verify (recomputes the chain), gated by audit.log:read
+  - security write side now records access-control changes (provision/status/role) to the trail
+  - Flyway audit.audit_log (V701)
+  - tests: domain hash/chain, service incl. tamper detection, Postgres IT 
 - 2026-06-09 `chore(repo)` (94e85ec) — remove Claude/AI tooling files from the repository
   - removed .claude/ (settings + skills), CLAUDE.md, .mcp.json and the .github/workflows/skill-review.yml workflow (used anthropics/claude-code-action)
   - .gitignore now ignores .claude/ and .mcp.json as local tooling config
