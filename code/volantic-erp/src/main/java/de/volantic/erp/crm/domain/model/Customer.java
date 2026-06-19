@@ -12,25 +12,28 @@ import de.volantic.erp.core.UuidV7;
 public final class Customer {
 
     private final CustomerId id;
+    private final OrgUnitId orgUnitId;
     private final String customerNumber;
     private String name;
     private String email;
 
-    private Customer(CustomerId id, String customerNumber, String name, String email) {
+    private Customer(CustomerId id, OrgUnitId orgUnitId, String customerNumber, String name, String email) {
         this.id = id;
+        this.orgUnitId = requireOrgUnit(orgUnitId);
         this.customerNumber = requireText(customerNumber, "customerNumber");
         this.name = requireText(name, "name");
         this.email = normalizeEmail(email);
     }
 
-    /** Creates a brand-new customer with a fresh identity. */
-    public static Customer create(String customerNumber, String name, String email) {
-        return new Customer(new CustomerId(UuidV7.randomUuid()), customerNumber, name, email);
+    /** Creates a brand-new customer with a fresh identity, belonging to the given org unit. */
+    public static Customer create(OrgUnitId orgUnitId, String customerNumber, String name, String email) {
+        return new Customer(new CustomerId(UuidV7.randomUuid()), orgUnitId, customerNumber, name, email);
     }
 
     /** Re-creates an existing customer from persisted state (used by the persistence adapter). */
-    public static Customer reconstitute(CustomerId id, String customerNumber, String name, String email) {
-        return new Customer(id, customerNumber, name, email);
+    public static Customer reconstitute(CustomerId id, OrgUnitId orgUnitId,
+                                        String customerNumber, String name, String email) {
+        return new Customer(id, orgUnitId, customerNumber, name, email);
     }
 
     public void rename(String newName) {
@@ -45,6 +48,11 @@ public final class Customer {
         return id;
     }
 
+    /** The organizational unit this customer belongs to — the data scope for authorization. */
+    public OrgUnitId orgUnitId() {
+        return orgUnitId;
+    }
+
     public String customerNumber() {
         return customerNumber;
     }
@@ -55,6 +63,13 @@ public final class Customer {
 
     public String email() {
         return email;
+    }
+
+    private static OrgUnitId requireOrgUnit(OrgUnitId orgUnitId) {
+        if (orgUnitId == null) {
+            throw new IllegalArgumentException("orgUnitId must not be null");
+        }
+        return orgUnitId;
     }
 
     private static String requireText(String value, String field) {

@@ -15,6 +15,9 @@ class CustomerEntity extends AbstractEntity {
     @Column(name = "customer_number", nullable = false, unique = true, updatable = false)
     private String customerNumber;
 
+    @Column(name = "org_unit_id", nullable = false, updatable = false)
+    private UUID orgUnitId;
+
     @Column(name = "name", nullable = false)
     private String name;
 
@@ -24,8 +27,9 @@ class CustomerEntity extends AbstractEntity {
     protected CustomerEntity() {
     }
 
-    CustomerEntity(UUID id, String customerNumber, String name, String email) {
+    CustomerEntity(UUID id, UUID orgUnitId, String customerNumber, String name, String email) {
         super(id);
+        this.orgUnitId = orgUnitId;
         this.customerNumber = customerNumber;
         this.name = name;
         this.email = email;
@@ -39,6 +43,10 @@ class CustomerEntity extends AbstractEntity {
 
     String customerNumber() {
         return customerNumber;
+    }
+
+    UUID orgUnitId() {
+        return orgUnitId;
     }
 
     String name() {
