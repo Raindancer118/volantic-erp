@@ -2,6 +2,7 @@ package de.volantic.erp.crm.api;
 
 import de.volantic.erp.crm.application.CrmConflictException;
 import de.volantic.erp.crm.application.CrmNotFoundException;
+import de.volantic.erp.crm.application.OptimisticLockException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -23,6 +24,11 @@ class CrmExceptionHandler {
     @ExceptionHandler(CrmConflictException.class)
     ProblemDetail handleConflict(CrmConflictException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+    }
+
+    @ExceptionHandler(OptimisticLockException.class)
+    ProblemDetail handleStaleUpdate(OptimisticLockException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.PRECONDITION_FAILED, exception.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

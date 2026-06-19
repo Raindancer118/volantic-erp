@@ -77,6 +77,24 @@ class CustomerRepositoryIT {
     }
 
     @Test
+    void versionIsSurfacedAndIncrementsOnUpdate() {
+        Customer customer = Customer.create("C-3001", "Versioned GmbH", null);
+        repository.save(customer);
+        em.flush();
+        em.clear();
+
+        Customer afterInsert = repository.findById(customer.id()).orElseThrow();
+        assertThat(afterInsert.version()).isEqualTo(0L);
+
+        afterInsert.rename("Versioned AG");
+        repository.save(afterInsert);
+        em.flush();
+        em.clear();
+
+        assertThat(repository.findById(customer.id()).orElseThrow().version()).isEqualTo(1L);
+    }
+
+    @Test
     void findAllSlicesAndCountsTotal() {
         for (int i = 1; i <= 3; i++) {
             repository.save(Customer.create("P-" + i, "Partner " + i, null));

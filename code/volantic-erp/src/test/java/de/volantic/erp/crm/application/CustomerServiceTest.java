@@ -51,15 +51,28 @@ class CustomerServiceTest {
     }
 
     @Test
-    void updateMutatesAndSaves() {
-        Customer existing = Customer.create("C-1", "ACME", "a@acme.de");
-        when(repository.findById(existing.id())).thenReturn(Optional.of(existing));
+    void updateMutatesAndSavesWhenVersionMatches() {
+        CustomerId id = new CustomerId(UuidV7.randomUuid());
+        Customer existing = Customer.reconstitute(id, "C-1", "ACME", "a@acme.de", 3L);
+        when(repository.findById(id)).thenReturn(Optional.of(existing));
         when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Customer updated = service.updateCustomer(existing.id(), "ACME AG", "neu@acme.de");
+        Customer updated = service.updateCustomer(id, 3L, "ACME AG", "neu@acme.de");
 
         assertThat(updated.name()).isEqualTo("ACME AG");
         assertThat(updated.email()).isEqualTo("neu@acme.de");
         verify(repository).save(existing);
+    }
+
+    @Test
+    void updateRejectsStaleVersionWithoutSaving() {
+        CustomerId id = new CustomerId(UuidV7.randomUuid());
+        // Persisted state is at version 5; the client still holds version 3 (someone edited in between).
+        Customer existing = Customer.reconstitute(id, "C-1", "ACME", "a@acme.de", 5L);
+        when(repository.findById(id)).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> service.updateCustomer(id, 3L, "ACME AG", "neu@acme.de"))
+                .isInstanceOf(OptimisticLockException.class);
+        verify(repository, never()).save(any());
     }
 }

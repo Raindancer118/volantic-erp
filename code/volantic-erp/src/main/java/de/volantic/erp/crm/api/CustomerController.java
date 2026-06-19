@@ -7,12 +7,14 @@ import de.volantic.erp.crm.domain.model.CustomerId;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -39,12 +41,12 @@ class CustomerController {
         Customer created = customers.createCustomer(request.customerNumber(), request.name(), request.email());
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}").buildAndExpand(created.id().value()).toUri();
-        return ResponseEntity.created(location).body(CustomerResponse.from(created));
+        return withETag(ResponseEntity.created(location), created);
     }
 
     @GetMapping("/{id}")
-    CustomerResponse getById(@PathVariable UUID id) {
-        return CustomerResponse.from(customers.getCustomer(new CustomerId(id)));
+    ResponseEntity<CustomerResponse> getById(@PathVariable UUID id) {
+        return withETag(ResponseEntity.ok(), customers.getCustomer(new CustomerId(id)));
     }
 
     @GetMapping
@@ -53,7 +55,35 @@ class CustomerController {
     }
 
     @PutMapping("/{id}")
-    CustomerResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateCustomerRequest request) {
-        return CustomerResponse.from(customers.updateCustomer(new CustomerId(id), request.name(), request.email()));
+    ResponseEntity<CustomerResponse> update(@PathVariable UUID id,
+                                            @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch,
+                                            @Valid @RequestBody UpdateCustomerRequest request) {
+        long expectedVersion = parseVersion(ifMatch);
+        Customer updated = customers.updateCustomer(new CustomerId(id), expectedVersion, request.name(), request.email());
+        return withETag(ResponseEntity.ok(), updated);
+    }
+
+    /** Sets the strong {@code ETag} header from the customer's version and writes the response body. */
+    private static ResponseEntity<CustomerResponse> withETag(ResponseEntity.BodyBuilder builder, Customer customer) {
+        if (customer.version() != null) {
+            builder.eTag("\"" + customer.version() + "\"");
+        }
+        return builder.body(CustomerResponse.from(customer));
+    }
+
+    /** Parses the version out of an {@code If-Match} header value (e.g. {@code "5"} or {@code W/"5"}). */
+    private static long parseVersion(String ifMatch) {
+        String value = ifMatch.strip();
+        if (value.startsWith("W/")) {
+            value = value.substring(2).strip();
+        }
+        if (value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"")) {
+            value = value.substring(1, value.length() - 1);
+        }
+        try {
+            return Long.parseLong(value.strip());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("If-Match must carry the resource version, got: " + ifMatch);
+        }
     }
 }

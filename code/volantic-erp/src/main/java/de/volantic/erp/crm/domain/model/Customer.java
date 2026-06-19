@@ -15,22 +15,24 @@ public final class Customer {
     private final String customerNumber;
     private String name;
     private String email;
+    private final Long version;
 
-    private Customer(CustomerId id, String customerNumber, String name, String email) {
+    private Customer(CustomerId id, String customerNumber, String name, String email, Long version) {
         this.id = id;
         this.customerNumber = requireText(customerNumber, "customerNumber");
         this.name = requireText(name, "name");
         this.email = normalizeEmail(email);
+        this.version = version;
     }
 
-    /** Creates a brand-new customer with a fresh identity. */
+    /** Creates a brand-new customer with a fresh identity. The version is assigned on first persist. */
     public static Customer create(String customerNumber, String name, String email) {
-        return new Customer(new CustomerId(UuidV7.randomUuid()), customerNumber, name, email);
+        return new Customer(new CustomerId(UuidV7.randomUuid()), customerNumber, name, email, null);
     }
 
     /** Re-creates an existing customer from persisted state (used by the persistence adapter). */
-    public static Customer reconstitute(CustomerId id, String customerNumber, String name, String email) {
-        return new Customer(id, customerNumber, name, email);
+    public static Customer reconstitute(CustomerId id, String customerNumber, String name, String email, Long version) {
+        return new Customer(id, customerNumber, name, email, version);
     }
 
     public void rename(String newName) {
@@ -55,6 +57,14 @@ public final class Customer {
 
     public String email() {
         return email;
+    }
+
+    /**
+     * Optimistic-locking token (mirrors the JPA {@code @Version}); {@code null} for a not-yet-persisted
+     * customer. Callers compare a client-supplied expected version against this to detect lost updates.
+     */
+    public Long version() {
+        return version;
     }
 
     private static String requireText(String value, String field) {
