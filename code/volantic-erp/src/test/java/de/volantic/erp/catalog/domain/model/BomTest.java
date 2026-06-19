@@ -51,4 +51,11 @@ class BomTest {
                 productId(), 1, LocalDate.of(2026, 2, 1), LocalDate.of(2026, 1, 1), List.of(line())))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void rejectsZeroQuantityLine() {
+        // A zero-quantity component would divide-by-zero / no-op in MRP explosion downstream.
+        assertThatThrownBy(() -> new BomLine(productId(), Quantity.of("0", UnitOfMeasure.PIECE)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 }

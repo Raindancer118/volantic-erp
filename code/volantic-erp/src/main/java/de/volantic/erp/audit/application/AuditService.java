@@ -4,6 +4,7 @@ import de.volantic.erp.audit.AuditTrail;
 import de.volantic.erp.audit.application.port.out.AuditLogStore;
 import de.volantic.erp.audit.domain.model.AuditEntry;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -11,7 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
-import java.util.List;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 /**
@@ -21,6 +22,9 @@ import java.util.UUID;
  */
 @Service
 public class AuditService implements AuditTrail {
+
+    /** Entries verified per round trip — bounds the memory footprint of a full-chain verification. */
+    private static final int VERIFY_BATCH_SIZE = 500;
 
     private final AuditLogStore store;
 
@@ -36,7 +40,8 @@ public class AuditService implements AuditTrail {
         long sequence = head == null ? 1L : head.sequence() + 1;
         String previousHash = head == null ? AuditEntry.GENESIS_HASH : head.entryHash();
         store.append(AuditEntry.create(
-                sequence, eventType, entityType, entityId, currentActor(), payload, OffsetDateTime.now(), previousHash));
+                sequence, eventType, entityType, entityId, currentActor(), payload,
+                OffsetDateTime.now(ZoneOffset.UTC), previousHash));
     }
 
     @Transactional(readOnly = true)
@@ -44,19 +49,28 @@ public class AuditService implements AuditTrail {
         return store.findPage(pageable);
     }
 
-    /** Recomputes the whole chain and reports the first tampered entry, if any. */
+    /**
+     * Recomputes the whole chain and reports the first tampered entry, if any. The append-only log is
+     * unbounded, so it is verified in {@value #VERIFY_BATCH_SIZE}-entry pages rather than loaded into a
+     * single in-memory list — otherwise a large trail would exhaust the heap (OOM).
+     */
     @Transactional(readOnly = true)
     public IntegrityResult verifyIntegrity() {
-        List<AuditEntry> all = store.findAllOrdered();
         String previousHash = AuditEntry.GENESIS_HASH;
         long checked = 0;
-        for (AuditEntry entry : all) {
-            checked++;
-            if (!entry.entryHash().equals(entry.recompute(previousHash))) {
-                return IntegrityResult.broken(checked, entry.sequence());
+        Page<AuditEntry> page;
+        int pageNumber = 0;
+        do {
+            page = store.findAscending(PageRequest.of(pageNumber, VERIFY_BATCH_SIZE));
+            for (AuditEntry entry : page) {
+                checked++;
+                if (!entry.entryHash().equals(entry.recompute(previousHash))) {
+                    return IntegrityResult.broken(checked, entry.sequence());
+                }
+                previousHash = entry.entryHash();
             }
-            previousHash = entry.entryHash();
-        }
+            pageNumber++;
+        } while (page.hasNext());
         return IntegrityResult.ok(checked);
     }
 

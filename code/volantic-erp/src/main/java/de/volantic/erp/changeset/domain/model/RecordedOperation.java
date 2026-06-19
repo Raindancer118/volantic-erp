@@ -37,4 +37,13 @@ public record RecordedOperation(
             throw new IllegalArgumentException("CREATE has no before-state");
         }
     }
+
+    /**
+     * Returns a copy with the given before-state. Used at commit time of a Probemodus session, where the
+     * before-state is only known once the buffered change is actually applied (it was {@code null} while
+     * the operation sat buffered), so the Rollback Engine can later compensate it.
+     */
+    public RecordedOperation withBeforeState(String newBeforeState) {
+        return new RecordedOperation(target, operation, newBeforeState, payload, recordedAt);
+    }
 }

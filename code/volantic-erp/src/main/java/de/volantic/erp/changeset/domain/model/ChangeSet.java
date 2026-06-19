@@ -1,6 +1,7 @@
 package de.volantic.erp.changeset.domain.model;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -43,7 +44,7 @@ public final class ChangeSet {
     /** Opens a fresh session for the given actor in the given mode. */
     public static ChangeSet open(String actor, ChangeSetMode mode) {
         return new ChangeSet(ChangeSetId.newId(), actor, mode, ChangeSetStatus.OPEN,
-                OffsetDateTime.now(), null, List.of());
+                OffsetDateTime.now(ZoneOffset.UTC), null, List.of());
     }
 
     /** Re-creates a persisted session (used by the persistence adapter). */
@@ -51,6 +52,23 @@ public final class ChangeSet {
                                           OffsetDateTime openedAt, OffsetDateTime closedAt,
                                           List<RecordedOperation> operations) {
         return new ChangeSet(requireNonNull(id, "id"), actor, mode, status, openedAt, closedAt, operations);
+    }
+
+    /**
+     * Replaces the buffered operations with versions enriched by the before-state captured at commit
+     * time. For a Probemodus session the before-state is unknown while operations sit buffered (nothing
+     * is written yet); capturing it as the changes are applied lets the Rollback Engine compensate a
+     * committed Probemodus session later. Only allowed while {@code OPEN} and the order/size must match.
+     */
+    public void replaceWithCaptured(List<RecordedOperation> capturedInOrder) {
+        if (status != ChangeSetStatus.OPEN) {
+            throw new IllegalStateException("cannot capture before-states into a " + status + " change set");
+        }
+        if (capturedInOrder.size() != operations.size()) {
+            throw new IllegalArgumentException("captured operations must match the recorded operations");
+        }
+        operations.clear();
+        operations.addAll(capturedInOrder);
     }
 
     /** Records one operation. Only allowed while the session is {@code OPEN}. */
@@ -84,7 +102,7 @@ public final class ChangeSet {
             throw new IllegalStateException("cannot revert a " + status + " change set");
         }
         this.status = ChangeSetStatus.REVERTED;
-        this.closedAt = OffsetDateTime.now();
+        this.closedAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
 
     /** Throws away a Probemodus session before commit. Only valid for a DEFERRED, still-open session. */
@@ -131,12 +149,23 @@ public final class ChangeSet {
         return closedAt;
     }
 
+    /** Identity equality: two sessions are the same iff they share an id, regardless of lifecycle state. */
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof ChangeSet that && id.equals(that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id.hashCode();
+    }
+
     private void transitionFromOpen(ChangeSetStatus target) {
         if (status != ChangeSetStatus.OPEN) {
             throw new IllegalStateException("change set is already " + status);
         }
         this.status = target;
-        this.closedAt = OffsetDateTime.now();
+        this.closedAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
 
     private static String requireText(String value, String field) {

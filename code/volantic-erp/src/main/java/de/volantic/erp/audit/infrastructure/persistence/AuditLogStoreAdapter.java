@@ -7,7 +7,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -47,8 +46,8 @@ class AuditLogStoreAdapter implements AuditLogStore {
     }
 
     @Override
-    public List<AuditEntry> findAllOrdered() {
-        return jpa.findAllByOrderBySequenceAsc().stream().map(AuditLogEntity::toDomain).toList();
+    public Page<AuditEntry> findAscending(Pageable pageable) {
+        return jpa.findAllByOrderBySequenceAsc(pageable).map(AuditLogEntity::toDomain);
     }
 
     @Override

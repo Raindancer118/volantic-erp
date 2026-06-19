@@ -53,6 +53,17 @@ public final class Supplier {
         return email;
     }
 
+    /** Identity equality: two suppliers are the same iff they share an id, regardless of mutable state. */
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof Supplier that && id.equals(that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id.hashCode();
+    }
+
     private static String requireText(String value, String field) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(field + " must not be blank");

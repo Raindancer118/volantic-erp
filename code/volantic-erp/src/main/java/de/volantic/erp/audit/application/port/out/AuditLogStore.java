@@ -4,7 +4,6 @@ import de.volantic.erp.audit.domain.model.AuditEntry;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import java.util.List;
 import java.util.Optional;
 
 /** Outbound port for the append-only audit log. */
@@ -18,8 +17,11 @@ public interface AuditLogStore {
 
     void append(AuditEntry entry);
 
-    /** All entries in ascending sequence order — for integrity verification. */
-    List<AuditEntry> findAllOrdered();
+    /**
+     * A page of entries in ascending sequence order — for streamed integrity verification. Paging keeps
+     * verification from loading the (unbounded, append-only) log into memory at once.
+     */
+    Page<AuditEntry> findAscending(Pageable pageable);
 
     /** A page of entries, newest first — for the read endpoint. */
     Page<AuditEntry> findPage(Pageable pageable);

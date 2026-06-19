@@ -38,6 +38,18 @@ spring:
       - classpath:db/migration/audit
       - classpath:db/migration/changeset
 
+  # Spring Modulith event publication registry (Outbox). Two settings keep it healthy:
+  #  - completion-mode: delete — completed publications are removed instead of just flagged, so the
+  #    event_publication table does not grow unbounded (every domain event would otherwise be kept
+  #    forever and the table would balloon into dead data).
+  #  - republish-outstanding-publications-on-restart — incomplete publications (listener failed/crashed
+  #    before completing) are re-delivered on the next boot, so the 360° link graph cannot silently
+  #    drift out of sync.
+  modulith:
+    events:
+      completion-mode: delete
+      republish-outstanding-publications-on-restart: true
+
   # RFC 7807 problem+json for errors (incl. bean-validation failures), consistent across modules.
   mvc:
     problemdetails:

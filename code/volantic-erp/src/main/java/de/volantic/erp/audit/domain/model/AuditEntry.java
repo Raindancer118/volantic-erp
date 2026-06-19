@@ -40,21 +40,30 @@ public record AuditEntry(
 
     private static String hash(long sequence, String eventType, String entityType, UUID entityId,
                                String actor, String payload, OffsetDateTime occurredAt, String previousHash) {
-        String canonical = String.join("|",
-                previousHash,
-                Long.toString(sequence),
-                nullSafe(eventType),
-                nullSafe(entityType),
-                entityId == null ? "" : entityId.toString(),
-                nullSafe(actor),
-                nullSafe(payload),
-                occurredAt == null ? "" : occurredAt.toInstant().toString());
+        // Length-prefixed canonical form: each field is encoded as "<byteLength>:<field>". This makes the
+        // concatenation injective, so untrusted inputs (actor, payload) cannot forge field boundaries by
+        // smuggling the delimiter — unlike a plain String.join("|", ...). The byte length is unambiguous,
+        // so any change to a field changes its length prefix and/or content and thus the hash.
+        StringBuilder canonical = new StringBuilder();
+        appendField(canonical, previousHash);
+        appendField(canonical, Long.toString(sequence));
+        appendField(canonical, nullSafe(eventType));
+        appendField(canonical, nullSafe(entityType));
+        appendField(canonical, entityId == null ? "" : entityId.toString());
+        appendField(canonical, nullSafe(actor));
+        appendField(canonical, nullSafe(payload));
+        appendField(canonical, occurredAt == null ? "" : occurredAt.toInstant().toString());
         try {
-            byte[] digest = MessageDigest.getInstance("SHA-256").digest(canonical.getBytes(StandardCharsets.UTF_8));
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(canonical.toString().getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(digest);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 not available", e);
         }
+    }
+
+    private static void appendField(StringBuilder target, String value) {
+        target.append(value.getBytes(StandardCharsets.UTF_8).length).append(':').append(value).append('|');
     }
 
     private static String nullSafe(String value) {

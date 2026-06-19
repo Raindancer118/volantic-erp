@@ -57,6 +57,17 @@ public final class Customer {
         return email;
     }
 
+    /** Identity equality: two customers are the same iff they share an id, regardless of mutable state. */
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof Customer that && id.equals(that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id.hashCode();
+    }
+
     private static String requireText(String value, String field) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(field + " must not be blank");
@@ -65,13 +76,6 @@ public final class Customer {
     }
 
     private static String normalizeEmail(String email) {
-        if (email == null || email.isBlank()) {
-            return null;
-        }
-        String normalized = email.strip().toLowerCase();
-        if (!normalized.contains("@")) {
-            throw new IllegalArgumentException("email must contain '@'");
-        }
-        return normalized;
+        return EmailAddresses.normalize(email);
     }
 }

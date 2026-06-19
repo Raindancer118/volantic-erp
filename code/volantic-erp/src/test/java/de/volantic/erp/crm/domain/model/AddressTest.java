@@ -27,6 +27,9 @@ class AddressTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> Address.create(owner, AddressType.BILLING, "Main", "20095", "HH", "DEU"))
                 .isInstanceOf(IllegalArgumentException.class);
+        // Two letters but not a real ISO 3166-1 country code — must also be rejected.
+        assertThatThrownBy(() -> Address.create(owner, AddressType.BILLING, "Main", "20095", "HH", "XX"))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

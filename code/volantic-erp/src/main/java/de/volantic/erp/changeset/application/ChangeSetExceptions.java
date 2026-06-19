@@ -15,6 +15,13 @@ public final class ChangeSetExceptions {
         }
     }
 
+    /** The current actor is not the owner of the session they tried to operate on (→ 403). */
+    public static final class ChangeSetAccessDeniedException extends RuntimeException {
+        public ChangeSetAccessDeniedException(ChangeSetId id) {
+            super("change set is owned by another actor: " + id.value());
+        }
+    }
+
     /** No handler is registered for the requested resource type (→ 400/422). */
     public static final class UnknownResourceTypeException extends RuntimeException {
         public UnknownResourceTypeException(String resourceType) {

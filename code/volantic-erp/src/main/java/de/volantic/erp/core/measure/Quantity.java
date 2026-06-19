@@ -42,9 +42,37 @@ public record Quantity(BigDecimal amount, UnitOfMeasure unit) {
         return amount.signum() < 0;
     }
 
+    public boolean isZero() {
+        return amount.signum() == 0;
+    }
+
     private void requireSameUnit(Quantity other) {
         if (!unit.equals(other.unit)) {
             throw new IllegalArgumentException("unit mismatch: " + unit.code() + " vs " + other.unit.code());
         }
+    }
+
+    /**
+     * Value equality that is scale-insensitive on the amount: {@code Quantity.of("2")} equals
+     * {@code Quantity.of("2.0")}. The record's generated {@code equals} would delegate to
+     * {@link BigDecimal#equals(Object)}, which compares value <em>and</em> scale and would report those
+     * two as different — silently breaking comparisons, set membership and BOM logic. We compare the
+     * amount via {@link BigDecimal#compareTo} instead.
+     */
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        return other instanceof Quantity that
+                && unit.equals(that.unit)
+                && amount.compareTo(that.amount) == 0;
+    }
+
+    @Override
+    public int hashCode() {
+        // Must agree with the scale-insensitive equals: strip the scale before hashing so equal values
+        // (different scale) land in the same bucket.
+        return Objects.hash(amount.stripTrailingZeros(), unit);
     }
 }

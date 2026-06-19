@@ -2,6 +2,7 @@ package de.volantic.erp.changeset.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.volantic.erp.audit.AuditTrail;
+import de.volantic.erp.changeset.application.ChangeSetExceptions.ChangeSetAccessDeniedException;
 import de.volantic.erp.changeset.application.ChangeSetExceptions.ChangeSetNotFoundException;
 import de.volantic.erp.changeset.application.ChangeSetExceptions.FieldNotEditableException;
 import de.volantic.erp.changeset.application.port.out.ChangeSetStore;
@@ -14,10 +15,14 @@ import de.volantic.erp.core.entitylink.EntityRef;
 import de.volantic.erp.core.revision.BulkEditHandler;
 import de.volantic.erp.core.revision.ChangeOperation;
 import de.volantic.erp.core.revision.ReversibleResourceHandler;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -64,6 +69,14 @@ class ChangeSetServiceTest {
         when(revHandler.resourceType()).thenReturn(TYPE);
         ResourceHandlers handlers = new ResourceHandlers(List.of(bulkHandler), List.of(revHandler));
         service = new ChangeSetService(store, handlers, audit, json);
+        // The sessions under test are opened by "alice"; authenticate as her so the ownership check passes.
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("alice", null, AuthorityUtils.NO_AUTHORITIES));
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
     }
 
     private BulkChange change(Map<String, String> fields, UUID... ids) {
@@ -218,5 +231,34 @@ class ChangeSetServiceTest {
 
         assertThatThrownBy(() -> service.apply(ChangeSetId.newId(), change(changes, id1)))
                 .isInstanceOf(ChangeSetNotFoundException.class);
+    }
+
+    @Test
+    void operatingOnAnotherActorsSessionIsRejected() {
+        ChangeSet foreign = ChangeSet.open("mallory", ChangeSetMode.DEFERRED);
+        given(foreign);
+
+        // "alice" (the authenticated actor) must not touch a session owned by "mallory".
+        assertThatThrownBy(() -> service.commit(foreign.id())).isInstanceOf(ChangeSetAccessDeniedException.class);
+        assertThatThrownBy(() -> service.discard(foreign.id())).isInstanceOf(ChangeSetAccessDeniedException.class);
+        assertThatThrownBy(() -> service.revert(foreign.id())).isInstanceOf(ChangeSetAccessDeniedException.class);
+        assertThatThrownBy(() -> service.apply(foreign.id(), change(changes, id1)))
+                .isInstanceOf(ChangeSetAccessDeniedException.class);
+        verify(bulkHandler, never()).applyChange(any(), any());
+    }
+
+    @Test
+    void commitProbemodusCapturesBeforeStateSoItCanBeReverted() {
+        ChangeSet session = ChangeSet.open("alice", ChangeSetMode.DEFERRED);
+        given(session);
+        service.apply(session.id(), change(changes, id1));     // buffers, before-state still null
+        when(revHandler.capture(id1)).thenReturn("BEFORE-AT-COMMIT");
+
+        service.commit(session.id());
+
+        // The committed operation now carries the before-state captured while applying, so a later
+        // revert can compensate it instead of writing null.
+        assertThat(session.operations()).singleElement()
+                .satisfies(op -> assertThat(op.beforeState()).isEqualTo("BEFORE-AT-COMMIT"));
     }
 }

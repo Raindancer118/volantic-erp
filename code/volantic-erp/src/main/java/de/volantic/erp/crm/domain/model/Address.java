@@ -2,11 +2,17 @@ package de.volantic.erp.crm.domain.model;
 
 import de.volantic.erp.core.UuidV7;
 
+import java.util.Locale;
+import java.util.Set;
+
 /**
  * A postal address belonging to a business partner (customer or supplier). Small aggregate referencing
  * its owner via {@link PartnerRef}. Pure domain.
  */
 public final class Address {
+
+    /** ISO 3166-1 alpha-2 codes known to the JVM, used to reject made-up codes like {@code XX}. */
+    private static final Set<String> ISO_COUNTRIES = Set.of(Locale.getISOCountries());
 
     private final AddressId id;
     private final PartnerRef owner;
@@ -73,6 +79,17 @@ public final class Address {
         return countryCode;
     }
 
+    /** Identity equality: two addresses are the same iff they share an id, regardless of mutable state. */
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof Address that && id.equals(that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id.hashCode();
+    }
+
     private static String requireText(String value, String field) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(field + " must not be blank");
@@ -82,8 +99,8 @@ public final class Address {
 
     private static String normalizeCountry(String countryCode) {
         String value = requireText(countryCode, "countryCode").toUpperCase();
-        if (value.length() != 2) {
-            throw new IllegalArgumentException("countryCode must be an ISO 3166-1 alpha-2 code");
+        if (!ISO_COUNTRIES.contains(value)) {
+            throw new IllegalArgumentException("countryCode must be a valid ISO 3166-1 alpha-2 code: " + value);
         }
         return value;
     }

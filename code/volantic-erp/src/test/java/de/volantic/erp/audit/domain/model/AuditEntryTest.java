@@ -35,4 +35,15 @@ class AuditEntryTest {
 
         assertThat(entry.recompute("bbbb")).isNotEqualTo(entry.entryHash());
     }
+
+    @Test
+    void delimiterInFieldsCannotForgeAnotherEntrysCanonicalForm() {
+        // With a naive String.join("|", actor, payload) these two entries would share the same canonical
+        // string ("a|b|c") and thus the same hash, letting an attacker rewrite a field while keeping a
+        // valid chain. Length-prefixing the fields makes the encoding injective, so the hashes differ.
+        AuditEntry split = AuditEntry.create(1, "evt", "type", entityId, "a", "b|c", when, AuditEntry.GENESIS_HASH);
+        AuditEntry shifted = AuditEntry.create(1, "evt", "type", entityId, "a|b", "c", when, AuditEntry.GENESIS_HASH);
+
+        assertThat(split.entryHash()).isNotEqualTo(shifted.entryHash());
+    }
 }

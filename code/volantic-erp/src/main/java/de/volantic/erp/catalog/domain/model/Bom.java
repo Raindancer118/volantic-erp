@@ -70,6 +70,17 @@ public final class Bom {
         return lines;
     }
 
+    /** Identity equality: two BOMs are the same iff they share an id (a BOM is immutable once created). */
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof Bom that && id.equals(that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id.hashCode();
+    }
+
     private static <T> T requireNonNull(T value, String field) {
         if (value == null) {
             throw new IllegalArgumentException(field + " must not be null");

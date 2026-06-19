@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.volantic.erp.audit.AuditTrail;
+import de.volantic.erp.changeset.application.ChangeSetExceptions.ChangeSetAccessDeniedException;
 import de.volantic.erp.changeset.application.ChangeSetExceptions.ChangeSetNotFoundException;
 import de.volantic.erp.changeset.application.ChangeSetExceptions.FieldNotEditableException;
 import de.volantic.erp.changeset.application.port.out.ChangeSetStore;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -96,7 +98,7 @@ public class ChangeSetService {
     @Transactional
     @PreAuthorize("hasPermission(null, 'changeset.bulk:execute')")
     public void apply(ChangeSetId session, BulkChange change) {
-        ChangeSet changeSet = load(session);
+        ChangeSet changeSet = loadOwned(session);
         BulkEditHandler bulk = handlers.bulkFor(change.resourceType());
         ReversibleResourceHandler reversible = handlers.reversibleFor(change.resourceType());
         rejectUneditableFields(change, bulk);
@@ -106,11 +108,11 @@ public class ChangeSetService {
         for (var id : change.ids()) {
             EntityRef target = EntityRef.of(change.resourceType(), id);
             if (deferred) {
-                changeSet.record(new RecordedOperation(target, ChangeOperation.UPDATE, null, payload, OffsetDateTime.now()));
+                changeSet.record(new RecordedOperation(target, ChangeOperation.UPDATE, null, payload, now()));
             } else {
                 String before = reversible.capture(id);
                 bulk.applyChange(id, change.fieldChanges());
-                changeSet.record(new RecordedOperation(target, ChangeOperation.UPDATE, before, payload, OffsetDateTime.now()));
+                changeSet.record(new RecordedOperation(target, ChangeOperation.UPDATE, before, payload, now()));
                 audit.record("changeset.bulk-applied", change.resourceType(), id, payload);
             }
         }
@@ -121,13 +123,21 @@ public class ChangeSetService {
     @Transactional
     @PreAuthorize("hasPermission(null, 'changeset.bulk:execute')")
     public void commit(ChangeSetId session) {
-        ChangeSet changeSet = load(session);
+        ChangeSet changeSet = loadOwned(session);
         if (changeSet.mode() == ChangeSetMode.DEFERRED) {
+            // Capture the before-state as each buffered change is applied. It was null while the operation
+            // sat buffered (nothing written yet); capturing it now lets a later revert() compensate this
+            // committed Probemodus session instead of writing null into the database.
+            List<RecordedOperation> captured = new ArrayList<>();
             for (RecordedOperation op : changeSet.operations()) {
                 BulkEditHandler bulk = handlers.bulkFor(op.target().type());
+                ReversibleResourceHandler reversible = handlers.reversibleFor(op.target().type());
+                String before = reversible.capture(op.target().id());
                 bulk.applyChange(op.target().id(), deserialize(op.payload()));
                 audit.record("changeset.committed", op.target().type(), op.target().id(), op.payload());
+                captured.add(op.withBeforeState(before));
             }
+            changeSet.replaceWithCaptured(captured);
         }
         changeSet.commit();
         store.save(changeSet);
@@ -137,7 +147,7 @@ public class ChangeSetService {
     @Transactional
     @PreAuthorize("hasPermission(null, 'changeset.bulk:execute')")
     public void discard(ChangeSetId session) {
-        ChangeSet changeSet = load(session);
+        ChangeSet changeSet = loadOwned(session);
         changeSet.discard();
         store.save(changeSet);
     }
@@ -146,7 +156,7 @@ public class ChangeSetService {
     @Transactional
     @PreAuthorize("hasPermission(null, 'changeset.rollback:revert')")
     public void revert(ChangeSetId session) {
-        ChangeSet changeSet = load(session);
+        ChangeSet changeSet = loadOwned(session);
         for (RecordedOperation op : changeSet.operationsForReversal()) {
             ReversibleResourceHandler reversible = handlers.reversibleFor(op.target().type());
             reversible.compensate(op.operation(), op.target().id(), op.beforeState());
@@ -158,6 +168,24 @@ public class ChangeSetService {
 
     private ChangeSet load(ChangeSetId session) {
         return store.findById(session).orElseThrow(() -> new ChangeSetNotFoundException(session));
+    }
+
+    /**
+     * Loads a session and verifies the current actor owns it. The {@code changeset.bulk:execute}
+     * permission only grants the ability to run bulk edits at all — it must not let one user commit,
+     * discard or revert another user's in-progress session, so ownership is checked here in addition to
+     * the coarse permission.
+     */
+    private ChangeSet loadOwned(ChangeSetId session) {
+        ChangeSet changeSet = load(session);
+        if (!changeSet.actor().equals(currentActor())) {
+            throw new ChangeSetAccessDeniedException(session);
+        }
+        return changeSet;
+    }
+
+    private static OffsetDateTime now() {
+        return OffsetDateTime.now(ZoneOffset.UTC);
     }
 
     private static List<String> uneditableFields(BulkChange change, BulkEditHandler handler) {

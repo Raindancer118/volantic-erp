@@ -13,22 +13,29 @@ import java.util.UUID;
  */
 public final class UuidV7 {
 
-    private static final SecureRandom RANDOM = new SecureRandom();
+    /**
+     * One {@link SecureRandom} per thread. A single shared instance synchronizes internally on every
+     * {@code nextBytes} call, so under bulk inserts or event spikes all threads serialize on that one
+     * intrinsic lock. A thread-local CSPRNG keeps the cryptographic quality of the random bits while
+     * removing the contention entirely.
+     */
+    private static final ThreadLocal<SecureRandom> RANDOM = ThreadLocal.withInitial(SecureRandom::new);
 
     private UuidV7() {
     }
 
     public static UUID randomUuid() {
+        SecureRandom random = RANDOM.get();
         long timestamp = System.currentTimeMillis() & 0xFFFF_FFFF_FFFFL; // 48 bit unix_ts_ms
 
         byte[] randA = new byte[2];
-        RANDOM.nextBytes(randA);
+        random.nextBytes(randA);
         long randomA = ((long) (randA[0] & 0xFF) << 8 | (randA[1] & 0xFF)) & 0x0FFF; // 12 bit
 
         long msb = (timestamp << 16) | (0x7L << 12) | randomA; // ts | version(7) | rand_a
 
         byte[] randB = new byte[8];
-        RANDOM.nextBytes(randB);
+        random.nextBytes(randB);
         long lsb = 0L;
         for (byte b : randB) {
             lsb = (lsb << 8) | (b & 0xFF);
