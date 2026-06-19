@@ -2,6 +2,7 @@ package de.volantic.erp.crm.infrastructure.persistence;
 
 import de.volantic.erp.crm.application.port.out.CustomerRepository;
 import de.volantic.erp.crm.domain.model.Customer;
+import de.volantic.erp.crm.domain.model.OrgUnitId;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -13,12 +14,14 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.util.UUID;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Persistence integration test for the customer adapter against a real PostgreSQL (Testcontainers):
- * insert, lookup, uniqueness and update roundtrip, validating the JPA mapping against the Flyway schema.
- * Skipped without Docker; runs in CI.
+ * insert, lookup, uniqueness, org-unit scope and update roundtrip, validating the JPA mapping against
+ * the Flyway schema. Skipped without Docker; runs in CI.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -29,6 +32,8 @@ class CustomerRepositoryIT {
     @Container
     @ServiceConnection
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
+
+    private static final OrgUnitId ORG = OrgUnitId.DEFAULT;
 
     @Autowired
     private CustomerRepository repository;
@@ -41,7 +46,7 @@ class CustomerRepositoryIT {
 
     @Test
     void auditTimestampsArePopulatedOnInsert() {
-        Customer customer = Customer.create("C-2001", "Audited GmbH", null);
+        Customer customer = Customer.create(ORG, "C-2001", "Audited GmbH", null);
         repository.save(customer);
 
         // flush the INSERT and detach, so the reload reads the persisted row (timestamps written)
@@ -55,7 +60,7 @@ class CustomerRepositoryIT {
 
     @Test
     void savesLoadsAndUpdatesCustomer() {
-        Customer customer = Customer.create("C-1001", "ACME GmbH", "info@acme.de");
+        Customer customer = Customer.create(ORG, "C-1001", "ACME GmbH", "info@acme.de");
         repository.save(customer);
 
         assertThat(repository.existsByCustomerNumber("C-1001")).isTrue();
@@ -77,9 +82,20 @@ class CustomerRepositoryIT {
     }
 
     @Test
+    void orgUnitIsPersistedAndReloaded() {
+        OrgUnitId orgUnit = new OrgUnitId(UUID.randomUUID());
+        Customer customer = Customer.create(orgUnit, "C-4001", "Scoped GmbH", null);
+        repository.save(customer);
+        em.flush();
+        em.clear();
+
+        assertThat(repository.findById(customer.id()).orElseThrow().orgUnitId()).isEqualTo(orgUnit);
+    }
+
+    @Test
     void findAllSlicesAndCountsTotal() {
         for (int i = 1; i <= 3; i++) {
-            repository.save(Customer.create("P-" + i, "Partner " + i, null));
+            repository.save(Customer.create(ORG, "P-" + i, "Partner " + i, null));
         }
 
         var firstPage = repository.findAll(org.springframework.data.domain.PageRequest.of(0, 2));

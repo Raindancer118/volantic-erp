@@ -4,6 +4,7 @@ import de.volantic.erp.core.web.PageResponse;
 import de.volantic.erp.crm.application.CustomerService;
 import de.volantic.erp.crm.domain.model.Customer;
 import de.volantic.erp.crm.domain.model.CustomerId;
+import de.volantic.erp.crm.domain.model.OrgUnitId;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -36,7 +37,8 @@ class CustomerController {
 
     @PostMapping
     ResponseEntity<CustomerResponse> create(@Valid @RequestBody CreateCustomerRequest request) {
-        Customer created = customers.createCustomer(request.customerNumber(), request.name(), request.email());
+        OrgUnitId orgUnitId = request.orgUnitId() != null ? new OrgUnitId(request.orgUnitId()) : OrgUnitId.DEFAULT;
+        Customer created = customers.createCustomer(orgUnitId, request.customerNumber(), request.name(), request.email());
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}").buildAndExpand(created.id().value()).toUri();
         return ResponseEntity.created(location).body(CustomerResponse.from(created));

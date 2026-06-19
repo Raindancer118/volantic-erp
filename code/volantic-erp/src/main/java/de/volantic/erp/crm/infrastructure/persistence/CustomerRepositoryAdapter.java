@@ -3,6 +3,7 @@ package de.volantic.erp.crm.infrastructure.persistence;
 import de.volantic.erp.crm.application.port.out.CustomerRepository;
 import de.volantic.erp.crm.domain.model.Customer;
 import de.volantic.erp.crm.domain.model.CustomerId;
+import de.volantic.erp.crm.domain.model.OrgUnitId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
@@ -27,7 +28,8 @@ class CustomerRepositoryAdapter implements CustomerRepository {
     public Customer save(Customer customer) {
         CustomerEntity entity = jpa.findById(customer.id().value())
                 .orElseGet(() -> new CustomerEntity(
-                        customer.id().value(), customer.customerNumber(), customer.name(), customer.email()));
+                        customer.id().value(), customer.orgUnitId().value(),
+                        customer.customerNumber(), customer.name(), customer.email()));
         entity.apply(customer.name(), customer.email());
         return toDomain(jpa.save(entity));
     }
@@ -49,6 +51,7 @@ class CustomerRepositoryAdapter implements CustomerRepository {
 
     private Customer toDomain(CustomerEntity entity) {
         return Customer.reconstitute(
-                new CustomerId(entity.getId()), entity.customerNumber(), entity.name(), entity.email());
+                new CustomerId(entity.getId()), new OrgUnitId(entity.orgUnitId()),
+                entity.customerNumber(), entity.name(), entity.email());
     }
 }

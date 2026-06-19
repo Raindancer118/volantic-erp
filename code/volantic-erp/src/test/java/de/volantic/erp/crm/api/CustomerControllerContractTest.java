@@ -4,6 +4,7 @@ import de.volantic.erp.crm.application.CustomerNotFoundException;
 import de.volantic.erp.crm.application.CustomerService;
 import de.volantic.erp.crm.domain.model.Customer;
 import de.volantic.erp.crm.domain.model.CustomerId;
+import de.volantic.erp.crm.domain.model.OrgUnitId;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +14,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -42,8 +44,9 @@ class CustomerControllerContractTest {
 
     @Test
     void createReturns201WithLocationAndBody() throws Exception {
-        Customer created = Customer.create("C-1001", "ACME GmbH", "info@acme.de");
-        when(customerService.createCustomer("C-1001", "ACME GmbH", "info@acme.de")).thenReturn(created);
+        Customer created = Customer.create(OrgUnitId.DEFAULT, "C-1001", "ACME GmbH", "info@acme.de");
+        when(customerService.createCustomer(any(OrgUnitId.class), eq("C-1001"), eq("ACME GmbH"), eq("info@acme.de")))
+                .thenReturn(created);
 
         mvc.perform(post("/v1/crm/customers").contentType(APPLICATION_JSON).content("""
                         {"customerNumber":"C-1001","name":"ACME GmbH","email":"info@acme.de"}"""))
@@ -51,9 +54,24 @@ class CustomerControllerContractTest {
                 .andExpect(header().string("Location",
                         org.hamcrest.Matchers.endsWith("/v1/crm/customers/" + created.id().value())))
                 .andExpect(jsonPath("$.id").value(created.id().value().toString()))
+                .andExpect(jsonPath("$.orgUnitId").value(OrgUnitId.DEFAULT.value().toString()))
                 .andExpect(jsonPath("$.customerNumber").value("C-1001"))
                 .andExpect(jsonPath("$.name").value("ACME GmbH"))
                 .andExpect(jsonPath("$.email").value("info@acme.de"));
+    }
+
+    @Test
+    void createForwardsExplicitOrgUnit() throws Exception {
+        UUID orgUnit = UUID.randomUUID();
+        Customer created = Customer.create(new OrgUnitId(orgUnit), "C-2", "Globex", "a@globex.de");
+        when(customerService.createCustomer(eq(new OrgUnitId(orgUnit)), eq("C-2"), eq("Globex"), eq("a@globex.de")))
+                .thenReturn(created);
+
+        mvc.perform(post("/v1/crm/customers").contentType(APPLICATION_JSON).content("""
+                        {"customerNumber":"C-2","name":"Globex","email":"a@globex.de","orgUnitId":"%s"}"""
+                        .formatted(orgUnit)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.orgUnitId").value(orgUnit.toString()));
     }
 
     @Test
@@ -62,22 +80,23 @@ class CustomerControllerContractTest {
                         {"customerNumber":"C-1","name":"","email":"a@b.de"}"""))
                 .andExpect(status().isBadRequest());
 
-        verify(customerService, never()).createCustomer(any(), any(), any());
+        verify(customerService, never()).createCustomer(any(), any(), any(), any());
     }
 
     @Test
     void getByIdReturns200() throws Exception {
-        Customer customer = Customer.create("C-1001", "ACME GmbH", "info@acme.de");
+        Customer customer = Customer.create(OrgUnitId.DEFAULT, "C-1001", "ACME GmbH", "info@acme.de");
         when(customerService.getCustomer(any(CustomerId.class))).thenReturn(customer);
 
         mvc.perform(get("/v1/crm/customers/{id}", customer.id().value()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.customerNumber").value("C-1001"));
+                .andExpect(jsonPath("$.customerNumber").value("C-1001"))
+                .andExpect(jsonPath("$.orgUnitId").value(OrgUnitId.DEFAULT.value().toString()));
     }
 
     @Test
     void getByIdReturns404WhenMissing() throws Exception {
-        CustomerId id = new CustomerId(java.util.UUID.randomUUID());
+        CustomerId id = new CustomerId(UUID.randomUUID());
         when(customerService.getCustomer(eq(id))).thenThrow(new CustomerNotFoundException(id));
 
         mvc.perform(get("/v1/crm/customers/{id}", id.value()))
@@ -87,7 +106,7 @@ class CustomerControllerContractTest {
     @Test
     void listReturnsPagedEnvelope() throws Exception {
         when(customerService.listCustomers(any()))
-                .thenReturn(new PageImpl<>(List.of(Customer.create("C-1", "ACME", "a@acme.de"))));
+                .thenReturn(new PageImpl<>(List.of(Customer.create(OrgUnitId.DEFAULT, "C-1", "ACME", "a@acme.de"))));
 
         mvc.perform(get("/v1/crm/customers"))
                 .andExpect(status().isOk())
