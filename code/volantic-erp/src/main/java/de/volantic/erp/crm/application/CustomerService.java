@@ -44,10 +44,20 @@ public class CustomerService {
         return customers.findAll(pageable);
     }
 
+    /**
+     * Updates a customer, guarding against lost updates: {@code expectedVersion} is the version the
+     * client last saw (via the {@code ETag} of a prior read). If the persisted state has moved on since
+     * then, the update is rejected with {@link OptimisticLockException} (→ 412) instead of silently
+     * overwriting the other change. The JPA {@code @Version} additionally guards against a race within
+     * this transaction.
+     */
     @Transactional
     @PreAuthorize("hasPermission(null, 'crm.customer:update')")
-    public Customer updateCustomer(CustomerId id, String name, String email) {
+    public Customer updateCustomer(CustomerId id, long expectedVersion, String name, String email) {
         Customer customer = customers.findById(id).orElseThrow(() -> new CustomerNotFoundException(id));
+        if (!java.util.Objects.equals(customer.version(), expectedVersion)) {
+            throw new OptimisticLockException("customer " + id.value(), expectedVersion, customer.version());
+        }
         customer.rename(name);
         customer.changeEmail(email);
         return customers.save(customer);

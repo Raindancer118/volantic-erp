@@ -49,6 +49,7 @@ class CustomerRepositoryAdapter implements CustomerRepository {
 
     private Customer toDomain(CustomerEntity entity) {
         return Customer.reconstitute(
-                new CustomerId(entity.getId()), entity.customerNumber(), entity.name(), entity.email());
+                new CustomerId(entity.getId()), entity.customerNumber(), entity.name(), entity.email(),
+                entity.getVersion());
     }
 }
