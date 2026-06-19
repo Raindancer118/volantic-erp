@@ -1,0 +1,31 @@
+package de.volantic.erp.changeset.application;
+
+import de.volantic.erp.changeset.domain.model.ChangeSetId;
+
+/** Application-level exceptions for the change-set use cases (mapped to RFC-7807 problems in the api layer). */
+public final class ChangeSetExceptions {
+
+    private ChangeSetExceptions() {
+    }
+
+    /** No session exists for the given id (→ 404). */
+    public static final class ChangeSetNotFoundException extends RuntimeException {
+        public ChangeSetNotFoundException(ChangeSetId id) {
+            super("change set not found: " + id.value());
+        }
+    }
+
+    /** No handler is registered for the requested resource type (→ 400/422). */
+    public static final class UnknownResourceTypeException extends RuntimeException {
+        public UnknownResourceTypeException(String resourceType) {
+            super("no handler registered for resource type: " + resourceType);
+        }
+    }
+
+    /** A requested field is not editable in bulk for the resource (→ 422). */
+    public static final class FieldNotEditableException extends RuntimeException {
+        public FieldNotEditableException(String resourceType, String field) {
+            super("field '" + field + "' is not editable in bulk for " + resourceType);
+        }
+    }
+}
