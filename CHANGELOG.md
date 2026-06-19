@@ -4,6 +4,10 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-19 `feat(changeset)` (3942bee) — application service + session persistence (M2)
+  - ChangeSetService: mass edit / Probemodus commit / Rollback Engine revert via core.revision handlers + AuditTrail
+  - ChangeSetStore JPA adapter (ops as JSON), Flyway V301
+  - test-first ChangeSetServiceTest + Testcontainers ChangeSetStoreIT 
 - 2026-06-19 `feat(changeset)` (f027171) — reversible change-set domain core (ADR-0006)
   - Mass edits, Probemodus (deferred apply) and Rollback Engine (forward-only GoBD-safe reversal)
   - core.revision SPI + persistence-free ChangeSet aggregate (LIVE/DEFERRED) 
