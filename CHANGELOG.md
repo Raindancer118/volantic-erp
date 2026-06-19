@@ -4,6 +4,9 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-19 `feat(changeset)` (f027171) — reversible change-set domain core (ADR-0006)
+  - Mass edits, Probemodus (deferred apply) and Rollback Engine (forward-only GoBD-safe reversal)
+  - core.revision SPI + persistence-free ChangeSet aggregate (LIVE/DEFERRED) 
 - 2026-06-09 `docs(status)` (d1b044d) — reconcile project status with implemented M0 foundations
   - Findings.md: original audit bleibt als Snapshot, neue dated 'Stand der Behebung'-Sektion mappt jedes Finding auf den behebenden PR und führt den offenen Restumfang (Cockpit/Search, API-Gateway, Last-/Latenz-CI-Gate) ehrlich auf
   - README.md: tatsächlich existierende Module (crm, catalog, audit, workflow) gelistet und die nie genutzte 'internal'-Konvention durch die reale hexagonale Schichtung ersetzt 
