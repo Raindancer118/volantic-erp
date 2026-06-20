@@ -243,7 +243,7 @@ public class ChangeSetService {
         try {
             return json.writeValueAsString(fieldChanges);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("could not serialize field changes", e);
+            throw new ChangeSetExceptions.SerializationException("could not serialize field changes", e);
         }
     }
 
@@ -251,7 +251,7 @@ public class ChangeSetService {
         try {
             return json.readValue(payload, FIELD_MAP);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("could not deserialize buffered field changes", e);
+            throw new ChangeSetExceptions.SerializationException("could not deserialize buffered field changes", e);
         }
     }
 

@@ -18,6 +18,13 @@ class WorkflowExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
     }
 
+    /** An unexpected workflow-engine failure → 503 (vendor exceptions never leak past this layer). */
+    @ExceptionHandler(WorkflowExceptions.EngineError.class)
+    ProblemDetail handleEngineError(WorkflowExceptions.EngineError exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE,
+                "the workflow engine is temporarily unavailable");
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     ProblemDetail handleBadRequest(IllegalArgumentException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());

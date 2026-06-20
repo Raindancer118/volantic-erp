@@ -42,4 +42,11 @@ public final class ChangeSetExceptions {
             super("field '" + field + "' cannot be used as a selection filter for " + resourceType);
         }
     }
+
+    /** A recorded operation's payload/snapshot could not be (de)serialized — an internal error (→ 500). */
+    public static final class SerializationException extends RuntimeException {
+        public SerializationException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
 }
