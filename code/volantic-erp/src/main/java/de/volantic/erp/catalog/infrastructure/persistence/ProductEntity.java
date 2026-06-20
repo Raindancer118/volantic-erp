@@ -41,6 +41,13 @@ class ProductEntity extends AbstractEntity {
         return new ProductEntity(product);
     }
 
+    /** Detached entity carrying the expected version for a version-checked merge (optimistic locking). */
+    static ProductEntity forUpdate(Product product, long version) {
+        ProductEntity entity = new ProductEntity(product);
+        entity.markPersisted(version);
+        return entity;
+    }
+
     void apply(Product product) {
         this.name = product.name();
         this.priceAmount = product.listPrice().amount();
@@ -49,6 +56,6 @@ class ProductEntity extends AbstractEntity {
 
     Product toDomain() {
         Money price = Money.of(priceAmount, Currency.getInstance(priceCurrency));
-        return Product.reconstitute(new ProductId(getId()), sku, name, price);
+        return Product.reconstitute(new ProductId(getId()), getVersion(), sku, name, price);
     }
 }

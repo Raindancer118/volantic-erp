@@ -1,5 +1,6 @@
 package de.volantic.erp.crm.api;
 
+import de.volantic.erp.core.web.ETags;
 import de.volantic.erp.core.web.PageResponse;
 import de.volantic.erp.crm.application.CustomerService;
 import de.volantic.erp.crm.domain.model.Customer;
@@ -7,12 +8,14 @@ import de.volantic.erp.crm.domain.model.CustomerId;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -39,12 +42,13 @@ class CustomerController {
         Customer created = customers.createCustomer(request.customerNumber(), request.name(), request.email());
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}").buildAndExpand(created.id().value()).toUri();
-        return ResponseEntity.created(location).body(CustomerResponse.from(created));
+        CustomerResponse body = CustomerResponse.from(created);
+        return ResponseEntity.created(location).eTag(ETags.format(body.version())).body(body);
     }
 
     @GetMapping("/{id}")
-    CustomerResponse getById(@PathVariable UUID id) {
-        return CustomerResponse.from(customers.getCustomer(new CustomerId(id)));
+    ResponseEntity<CustomerResponse> getById(@PathVariable UUID id) {
+        return withETag(CustomerResponse.from(customers.getCustomer(new CustomerId(id))));
     }
 
     @GetMapping
@@ -53,7 +57,15 @@ class CustomerController {
     }
 
     @PutMapping("/{id}")
-    CustomerResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateCustomerRequest request) {
-        return CustomerResponse.from(customers.updateCustomer(new CustomerId(id), request.name(), request.email()));
+    ResponseEntity<CustomerResponse> update(@PathVariable UUID id,
+            @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+            @Valid @RequestBody UpdateCustomerRequest request) {
+        Customer updated = customers.updateCustomer(
+                new CustomerId(id), ETags.parseIfMatch(ifMatch), request.name(), request.email());
+        return withETag(CustomerResponse.from(updated));
+    }
+
+    private static ResponseEntity<CustomerResponse> withETag(CustomerResponse body) {
+        return ResponseEntity.ok().eTag(ETags.format(body.version())).body(body);
     }
 }

@@ -1,5 +1,6 @@
 package de.volantic.erp.crm.api;
 
+import de.volantic.erp.core.web.ETags;
 import de.volantic.erp.core.web.PageResponse;
 import de.volantic.erp.crm.application.AddressService;
 import de.volantic.erp.crm.domain.model.Address;
@@ -9,6 +10,7 @@ import de.volantic.erp.crm.domain.model.PartnerType;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -42,12 +45,14 @@ class AddressController {
                 request.street(), request.postalCode(), request.city(), request.countryCode());
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}").buildAndExpand(created.id().value()).toUri();
-        return ResponseEntity.created(location).body(AddressResponse.from(created));
+        AddressResponse body = AddressResponse.from(created);
+        return ResponseEntity.created(location).eTag(ETags.format(body.version())).body(body);
     }
 
     @GetMapping("/{id}")
-    AddressResponse getById(@PathVariable UUID id) {
-        return AddressResponse.from(addresses.getAddress(new AddressId(id)));
+    ResponseEntity<AddressResponse> getById(@PathVariable UUID id) {
+        AddressResponse body = AddressResponse.from(addresses.getAddress(new AddressId(id)));
+        return ResponseEntity.ok().eTag(ETags.format(body.version())).body(body);
     }
 
     /** Lists addresses of one owner, e.g. {@code GET /v1/crm/addresses?ownerType=CUSTOMER&ownerId=...}. */
@@ -60,10 +65,13 @@ class AddressController {
     }
 
     @PutMapping("/{id}")
-    AddressResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateAddressRequest request) {
-        Address updated = addresses.updateAddress(new AddressId(id), request.type(),
+    ResponseEntity<AddressResponse> update(@PathVariable UUID id,
+            @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+            @Valid @RequestBody UpdateAddressRequest request) {
+        Address updated = addresses.updateAddress(new AddressId(id), ETags.parseIfMatch(ifMatch), request.type(),
                 request.street(), request.postalCode(), request.city(), request.countryCode());
-        return AddressResponse.from(updated);
+        AddressResponse body = AddressResponse.from(updated);
+        return ResponseEntity.ok().eTag(ETags.format(body.version())).body(body);
     }
 
     @DeleteMapping("/{id}")

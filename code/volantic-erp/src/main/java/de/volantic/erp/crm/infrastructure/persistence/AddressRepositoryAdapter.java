@@ -24,11 +24,13 @@ class AddressRepositoryAdapter implements AddressRepository {
 
     @Override
     public Address save(Address address) {
-        AddressEntity entity = jpa.findById(address.id().value())
-                .orElseGet(() -> new AddressEntity(
-                        address.id().value(), address.owner().type(), address.owner().id(), address.type(),
-                        address.street(), address.postalCode(), address.city(), address.countryCode()));
-        entity.apply(address.type(), address.street(), address.postalCode(), address.city(), address.countryCode());
+        // Versioned aggregate → version-checked merge (optimistic locking); new → insert. No re-fetch.
+        AddressEntity entity = address.version() == null
+                ? new AddressEntity(address.id().value(), address.owner().type(), address.owner().id(),
+                        address.type(), address.street(), address.postalCode(), address.city(), address.countryCode())
+                : AddressEntity.forUpdate(address.id().value(), address.owner().type(), address.owner().id(),
+                        address.type(), address.street(), address.postalCode(), address.city(),
+                        address.countryCode(), address.version());
         return toDomain(jpa.save(entity));
     }
 
@@ -58,7 +60,7 @@ class AddressRepositoryAdapter implements AddressRepository {
 
     private Address toDomain(AddressEntity entity) {
         return Address.reconstitute(
-                new AddressId(entity.getId()),
+                new AddressId(entity.getId()), entity.getVersion(),
                 PartnerRef.of(entity.ownerType(), entity.ownerId()),
                 entity.type(), entity.street(), entity.postalCode(), entity.city(), entity.countryCode());
     }

@@ -15,6 +15,7 @@ public final class Address {
     private static final Set<String> ISO_COUNTRIES = Set.of(Locale.getISOCountries());
 
     private final AddressId id;
+    private final Long version;
     private final PartnerRef owner;
     private AddressType type;
     private String street;
@@ -22,9 +23,10 @@ public final class Address {
     private String city;
     private String countryCode;
 
-    private Address(AddressId id, PartnerRef owner, AddressType type,
+    private Address(AddressId id, Long version, PartnerRef owner, AddressType type,
                     String street, String postalCode, String city, String countryCode) {
         this.id = id;
+        this.version = version;
         this.owner = owner;
         this.type = type == null ? AddressType.DEFAULT : type;
         this.street = requireText(street, "street");
@@ -35,12 +37,23 @@ public final class Address {
 
     public static Address create(PartnerRef owner, AddressType type,
                                  String street, String postalCode, String city, String countryCode) {
-        return new Address(new AddressId(UuidV7.randomUuid()), owner, type, street, postalCode, city, countryCode);
+        return new Address(new AddressId(UuidV7.randomUuid()), null, owner, type, street, postalCode, city, countryCode);
     }
 
     public static Address reconstitute(AddressId id, PartnerRef owner, AddressType type,
                                        String street, String postalCode, String city, String countryCode) {
-        return new Address(id, owner, type, street, postalCode, city, countryCode);
+        return new Address(id, null, owner, type, street, postalCode, city, countryCode);
+    }
+
+    /** Re-creates an existing address including its optimistic-lock version (used by the persistence adapter). */
+    public static Address reconstitute(AddressId id, long version, PartnerRef owner, AddressType type,
+                                       String street, String postalCode, String city, String countryCode) {
+        return new Address(id, version, owner, type, street, postalCode, city, countryCode);
+    }
+
+    /** Optimistic-lock version this aggregate was loaded at; {@code null} for a not-yet-persisted one. */
+    public Long version() {
+        return version;
     }
 
     public void change(AddressType type, String street, String postalCode, String city, String countryCode) {

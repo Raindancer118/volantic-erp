@@ -10,13 +10,16 @@ public final class Contact {
 
     private final ContactId id;
     private final PartnerRef owner;
+    private final Long version;
     private String firstName;
     private String lastName;
     private String email;
     private String phone;
 
-    private Contact(ContactId id, PartnerRef owner, String firstName, String lastName, String email, String phone) {
+    private Contact(ContactId id, Long version, PartnerRef owner,
+                    String firstName, String lastName, String email, String phone) {
         this.id = id;
+        this.version = version;
         this.owner = owner;
         this.firstName = requireText(firstName, "firstName");
         this.lastName = requireText(lastName, "lastName");
@@ -25,12 +28,23 @@ public final class Contact {
     }
 
     public static Contact create(PartnerRef owner, String firstName, String lastName, String email, String phone) {
-        return new Contact(new ContactId(UuidV7.randomUuid()), owner, firstName, lastName, email, phone);
+        return new Contact(new ContactId(UuidV7.randomUuid()), null, owner, firstName, lastName, email, phone);
     }
 
     public static Contact reconstitute(ContactId id, PartnerRef owner,
                                        String firstName, String lastName, String email, String phone) {
-        return new Contact(id, owner, firstName, lastName, email, phone);
+        return new Contact(id, null, owner, firstName, lastName, email, phone);
+    }
+
+    /** Re-creates an existing contact including its optimistic-lock version (used by the persistence adapter). */
+    public static Contact reconstitute(ContactId id, long version, PartnerRef owner,
+                                       String firstName, String lastName, String email, String phone) {
+        return new Contact(id, version, owner, firstName, lastName, email, phone);
+    }
+
+    /** Optimistic-lock version this aggregate was loaded at; {@code null} for a not-yet-persisted one. */
+    public Long version() {
+        return version;
     }
 
     public void change(String firstName, String lastName, String email, String phone) {

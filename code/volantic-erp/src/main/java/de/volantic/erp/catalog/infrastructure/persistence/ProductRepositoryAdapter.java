@@ -22,8 +22,10 @@ class ProductRepositoryAdapter implements ProductRepository {
 
     @Override
     public Product save(Product product) {
-        ProductEntity entity = jpa.findById(product.id().value()).orElseGet(() -> ProductEntity.from(product));
-        entity.apply(product);
+        // Versioned aggregate → version-checked merge (optimistic locking); new → insert. No re-fetch.
+        ProductEntity entity = product.version() == null
+                ? ProductEntity.from(product)
+                : ProductEntity.forUpdate(product, product.version());
         return jpa.save(entity).toDomain();
     }
 

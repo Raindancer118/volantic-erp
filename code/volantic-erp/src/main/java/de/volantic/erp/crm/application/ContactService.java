@@ -55,6 +55,18 @@ public class ContactService {
         return contacts.findIds(firstName, lastName, email);
     }
 
+    /** Update with an explicit optimistic-lock check (REST CRUD via ETag/If-Match). */
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'crm.contact:write')")
+    public Contact updateContact(ContactId id, long expectedVersion,
+                                 String firstName, String lastName, String email, String phone) {
+        Contact contact = contacts.findById(id).orElseThrow(() -> new ContactNotFoundException(id));
+        de.volantic.erp.core.OptimisticLock.check(contact.version(), expectedVersion, id);
+        contact.change(firstName, lastName, email, phone);
+        return contacts.save(contact);
+    }
+
+    /** Update without an explicit version — internal/bulk callers; still version-safe within the tx. */
     @Transactional
     @PreAuthorize("hasPermission(null, 'crm.contact:write')")
     public Contact updateContact(ContactId id, String firstName, String lastName, String email, String phone) {

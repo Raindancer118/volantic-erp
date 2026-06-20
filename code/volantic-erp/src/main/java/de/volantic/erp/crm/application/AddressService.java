@@ -57,6 +57,18 @@ public class AddressService {
         return addresses.findIds(type, city, postalCode, countryCode);
     }
 
+    /** Update with an explicit optimistic-lock check (REST CRUD via ETag/If-Match). */
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'crm.address:write')")
+    public Address updateAddress(AddressId id, long expectedVersion, AddressType type,
+                                 String street, String postalCode, String city, String countryCode) {
+        Address address = addresses.findById(id).orElseThrow(() -> new AddressNotFoundException(id));
+        de.volantic.erp.core.OptimisticLock.check(address.version(), expectedVersion, id);
+        address.change(type, street, postalCode, city, countryCode);
+        return addresses.save(address);
+    }
+
+    /** Update without an explicit version — internal/bulk callers; still version-safe within the tx. */
     @Transactional
     @PreAuthorize("hasPermission(null, 'crm.address:write')")
     public Address updateAddress(AddressId id, AddressType type,

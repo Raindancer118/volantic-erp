@@ -13,24 +13,36 @@ public final class Customer {
 
     private final CustomerId id;
     private final String customerNumber;
+    private final Long version;
     private String name;
     private String email;
 
-    private Customer(CustomerId id, String customerNumber, String name, String email) {
+    private Customer(CustomerId id, Long version, String customerNumber, String name, String email) {
         this.id = id;
+        this.version = version;
         this.customerNumber = requireText(customerNumber, "customerNumber");
         this.name = requireText(name, "name");
         this.email = normalizeEmail(email);
     }
 
-    /** Creates a brand-new customer with a fresh identity. */
+    /** Creates a brand-new customer with a fresh identity (no version yet — assigned on first persist). */
     public static Customer create(String customerNumber, String name, String email) {
-        return new Customer(new CustomerId(UuidV7.randomUuid()), customerNumber, name, email);
+        return new Customer(new CustomerId(UuidV7.randomUuid()), null, customerNumber, name, email);
     }
 
-    /** Re-creates an existing customer from persisted state (used by the persistence adapter). */
+    /** Re-creates an existing customer from persisted state (test/legacy overload without a version). */
     public static Customer reconstitute(CustomerId id, String customerNumber, String name, String email) {
-        return new Customer(id, customerNumber, name, email);
+        return new Customer(id, null, customerNumber, name, email);
+    }
+
+    /** Re-creates an existing customer including its optimistic-lock version (used by the persistence adapter). */
+    public static Customer reconstitute(CustomerId id, long version, String customerNumber, String name, String email) {
+        return new Customer(id, version, customerNumber, name, email);
+    }
+
+    /** Optimistic-lock version this aggregate was loaded at; {@code null} for a not-yet-persisted one. */
+    public Long version() {
+        return version;
     }
 
     public void rename(String newName) {

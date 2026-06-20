@@ -62,6 +62,14 @@ class AddressEntity extends AbstractEntity {
         this.countryCode = countryCode;
     }
 
+    /** Detached entity carrying the expected version for a version-checked merge (optimistic locking). */
+    static AddressEntity forUpdate(UUID id, PartnerType ownerType, UUID ownerId, AddressType type,
+                                   String street, String postalCode, String city, String countryCode, long version) {
+        AddressEntity entity = new AddressEntity(id, ownerType, ownerId, type, street, postalCode, city, countryCode);
+        entity.markPersisted(version);
+        return entity;
+    }
+
     PartnerType ownerType() {
         return ownerType;
     }

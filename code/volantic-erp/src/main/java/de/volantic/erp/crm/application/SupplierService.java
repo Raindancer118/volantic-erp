@@ -1,5 +1,6 @@
 package de.volantic.erp.crm.application;
 
+import de.volantic.erp.core.OptimisticLock;
 import de.volantic.erp.crm.application.port.out.SupplierRepository;
 import de.volantic.erp.crm.domain.model.Supplier;
 import de.volantic.erp.crm.domain.model.SupplierId;
@@ -50,6 +51,18 @@ public class SupplierService {
         return suppliers.findIds(name, email);
     }
 
+    /** Update with an explicit optimistic-lock check (REST CRUD via ETag/If-Match). */
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'crm.supplier:update')")
+    public Supplier updateSupplier(SupplierId id, long expectedVersion, String name, String email) {
+        Supplier supplier = suppliers.findById(id).orElseThrow(() -> new SupplierNotFoundException(id));
+        OptimisticLock.check(supplier.version(), expectedVersion, id);
+        supplier.rename(name);
+        supplier.changeEmail(email);
+        return suppliers.save(supplier);
+    }
+
+    /** Update without an explicit version — internal/bulk callers; still version-safe within the tx. */
     @Transactional
     @PreAuthorize("hasPermission(null, 'crm.supplier:update')")
     public Supplier updateSupplier(SupplierId id, String name, String email) {

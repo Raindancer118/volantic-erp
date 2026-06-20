@@ -22,10 +22,11 @@ class SupplierRepositoryAdapter implements SupplierRepository {
 
     @Override
     public Supplier save(Supplier supplier) {
-        SupplierEntity entity = jpa.findById(supplier.id().value())
-                .orElseGet(() -> new SupplierEntity(
-                        supplier.id().value(), supplier.supplierNumber(), supplier.name(), supplier.email()));
-        entity.apply(supplier.name(), supplier.email());
+        // Versioned aggregate → version-checked merge (optimistic locking); new → insert. No re-fetch.
+        SupplierEntity entity = supplier.version() == null
+                ? new SupplierEntity(supplier.id().value(), supplier.supplierNumber(), supplier.name(), supplier.email())
+                : SupplierEntity.forUpdate(supplier.id().value(), supplier.supplierNumber(),
+                        supplier.name(), supplier.email(), supplier.version());
         return toDomain(jpa.save(entity));
     }
 
@@ -50,7 +51,7 @@ class SupplierRepositoryAdapter implements SupplierRepository {
     }
 
     private Supplier toDomain(SupplierEntity entity) {
-        return Supplier.reconstitute(
-                new SupplierId(entity.getId()), entity.supplierNumber(), entity.name(), entity.email());
+        return Supplier.reconstitute(new SupplierId(entity.getId()), entity.getVersion(),
+                entity.supplierNumber(), entity.name(), entity.email());
     }
 }

@@ -3,6 +3,7 @@ package de.volantic.erp.catalog.application;
 import de.volantic.erp.catalog.application.port.out.ProductRepository;
 import de.volantic.erp.catalog.domain.model.Product;
 import de.volantic.erp.catalog.domain.model.ProductId;
+import de.volantic.erp.core.OptimisticLock;
 import de.volantic.erp.core.measure.Money;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -52,6 +53,18 @@ public class ProductService {
         return products.findIds(name, currencyCode);
     }
 
+    /** Update with an explicit optimistic-lock check (REST CRUD via ETag/If-Match). */
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'catalog.product:update')")
+    public Product updateProduct(ProductId id, long expectedVersion, String name, Money listPrice) {
+        Product product = products.findById(id).orElseThrow(() -> new CatalogExceptions.ProductNotFound(id));
+        OptimisticLock.check(product.version(), expectedVersion, id);
+        product.rename(name);
+        product.reprice(listPrice);
+        return products.save(product);
+    }
+
+    /** Update without an explicit version — internal/bulk callers; still version-safe within the tx. */
     @Transactional
     @PreAuthorize("hasPermission(null, 'catalog.product:update')")
     public Product updateProduct(ProductId id, String name, Money listPrice) {

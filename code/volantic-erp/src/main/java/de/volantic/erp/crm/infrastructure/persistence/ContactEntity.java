@@ -55,6 +55,14 @@ class ContactEntity extends AbstractEntity {
         this.phone = phone;
     }
 
+    /** Detached entity carrying the expected version for a version-checked merge (optimistic locking). */
+    static ContactEntity forUpdate(UUID id, PartnerType ownerType, UUID ownerId,
+                                   String firstName, String lastName, String email, String phone, long version) {
+        ContactEntity entity = new ContactEntity(id, ownerType, ownerId, firstName, lastName, email, phone);
+        entity.markPersisted(version);
+        return entity;
+    }
+
     PartnerType ownerType() {
         return ownerType;
     }

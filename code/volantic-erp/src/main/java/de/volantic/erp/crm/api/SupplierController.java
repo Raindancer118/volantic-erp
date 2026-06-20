@@ -1,5 +1,6 @@
 package de.volantic.erp.crm.api;
 
+import de.volantic.erp.core.web.ETags;
 import de.volantic.erp.core.web.PageResponse;
 import de.volantic.erp.crm.application.SupplierService;
 import de.volantic.erp.crm.domain.model.Supplier;
@@ -7,12 +8,14 @@ import de.volantic.erp.crm.domain.model.SupplierId;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -36,12 +39,13 @@ class SupplierController {
         Supplier created = suppliers.createSupplier(request.supplierNumber(), request.name(), request.email());
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}").buildAndExpand(created.id().value()).toUri();
-        return ResponseEntity.created(location).body(SupplierResponse.from(created));
+        SupplierResponse body = SupplierResponse.from(created);
+        return ResponseEntity.created(location).eTag(ETags.format(body.version())).body(body);
     }
 
     @GetMapping("/{id}")
-    SupplierResponse getById(@PathVariable UUID id) {
-        return SupplierResponse.from(suppliers.getSupplier(new SupplierId(id)));
+    ResponseEntity<SupplierResponse> getById(@PathVariable UUID id) {
+        return withETag(SupplierResponse.from(suppliers.getSupplier(new SupplierId(id))));
     }
 
     @GetMapping
@@ -50,7 +54,15 @@ class SupplierController {
     }
 
     @PutMapping("/{id}")
-    SupplierResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateSupplierRequest request) {
-        return SupplierResponse.from(suppliers.updateSupplier(new SupplierId(id), request.name(), request.email()));
+    ResponseEntity<SupplierResponse> update(@PathVariable UUID id,
+            @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+            @Valid @RequestBody UpdateSupplierRequest request) {
+        Supplier updated = suppliers.updateSupplier(
+                new SupplierId(id), ETags.parseIfMatch(ifMatch), request.name(), request.email());
+        return withETag(SupplierResponse.from(updated));
+    }
+
+    private static ResponseEntity<SupplierResponse> withETag(SupplierResponse body) {
+        return ResponseEntity.ok().eTag(ETags.format(body.version())).body(body);
     }
 }
