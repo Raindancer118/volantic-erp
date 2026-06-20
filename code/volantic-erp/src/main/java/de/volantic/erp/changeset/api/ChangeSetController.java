@@ -3,8 +3,12 @@ package de.volantic.erp.changeset.api;
 import de.volantic.erp.changeset.application.ChangeSetService;
 import de.volantic.erp.changeset.domain.model.ChangeSetId;
 import de.volantic.erp.changeset.domain.model.ChangeSetMode;
+import de.volantic.erp.core.web.PageResponse;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -38,6 +42,16 @@ class ChangeSetController {
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}").buildAndExpand(id.value()).toUri();
         return ResponseEntity.created(location).body(SessionResponse.of(id, mode));
+    }
+
+    @GetMapping("/sessions")
+    PageResponse<ChangeSetSummaryResponse> list(@PageableDefault(size = 50) Pageable pageable) {
+        return PageResponse.of(changeSets.listSessions(pageable), ChangeSetSummaryResponse::from);
+    }
+
+    @GetMapping("/sessions/{id}")
+    ChangeSetDetailResponse getById(@PathVariable UUID id) {
+        return ChangeSetDetailResponse.from(changeSets.getSession(new ChangeSetId(id)));
     }
 
     @PostMapping("/preview")

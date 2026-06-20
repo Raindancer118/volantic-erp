@@ -87,6 +87,24 @@ class ChangeSetStoreIT {
         assertThat(store.findById(session.id()).orElseThrow().status()).isEqualTo(ChangeSetStatus.COMMITTED);
     }
 
+    @Test
+    @Transactional
+    void findByActorReturnsOnlyThatActorsSessionsNewestFirst() {
+        store.save(ChangeSet.open("carol", ChangeSetMode.LIVE));
+        store.save(ChangeSet.open("dave", ChangeSetMode.LIVE));
+        ChangeSet carolsSecond = ChangeSet.open("carol", ChangeSetMode.DEFERRED);
+        store.save(carolsSecond);
+        entityManager.flush();
+        entityManager.clear();
+
+        var page = store.findByActor("carol", org.springframework.data.domain.PageRequest.of(0, 10));
+
+        assertThat(page.getTotalElements()).isEqualTo(2);
+        assertThat(page.getContent()).allSatisfy(session -> assertThat(session.actor()).isEqualTo("carol"));
+        // Newest first: the DEFERRED session was opened last, so it sorts ahead of the first LIVE one.
+        assertThat(page.getContent().getFirst().id()).isEqualTo(carolsSecond.id());
+    }
+
     @TestConfiguration
     static class JacksonConfig {
         @Bean

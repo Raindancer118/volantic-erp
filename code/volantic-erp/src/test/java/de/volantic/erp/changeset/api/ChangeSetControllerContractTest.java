@@ -7,15 +7,23 @@ import de.volantic.erp.changeset.application.ChangeSetExceptions.ChangeSetNotFou
 import de.volantic.erp.changeset.application.ChangeSetExceptions.FieldNotEditableException;
 import de.volantic.erp.changeset.application.ChangeSetExceptions.UnknownResourceTypeException;
 import de.volantic.erp.changeset.application.ChangeSetService;
+import de.volantic.erp.changeset.domain.model.ChangeSet;
 import de.volantic.erp.changeset.domain.model.ChangeSetId;
+import de.volantic.erp.changeset.domain.model.ChangeSetMode;
+import de.volantic.erp.changeset.domain.model.RecordedOperation;
+import de.volantic.erp.core.entitylink.EntityRef;
+import de.volantic.erp.core.revision.ChangeOperation;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,6 +34,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -165,6 +174,58 @@ class ChangeSetControllerContractTest {
                 .andExpect(status().isNoContent());
 
         verify(changeSets).revert(any(ChangeSetId.class));
+    }
+
+    @Test
+    void listReturnsPagedSummaries() throws Exception {
+        ChangeSet session = ChangeSet.open("alice", ChangeSetMode.LIVE);
+        when(changeSets.listSessions(any())).thenReturn(new PageImpl<>(List.of(session)));
+
+        mvc.perform(get("/v1/changeset/sessions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(session.id().value().toString()))
+                .andExpect(jsonPath("$.content[0].mode").value("LIVE"))
+                .andExpect(jsonPath("$.content[0].status").value("OPEN"))
+                .andExpect(jsonPath("$.content[0].actor").value("alice"))
+                .andExpect(jsonPath("$.content[0].operationCount").value(0))
+                .andExpect(jsonPath("$.content[0].revertible").value(true))
+                .andExpect(jsonPath("$.totalElements").value(1));
+    }
+
+    @Test
+    void getByIdReturnsDetailWithOperations() throws Exception {
+        ChangeSet session = ChangeSet.open("alice", ChangeSetMode.LIVE);
+        UUID target = UUID.randomUUID();
+        session.record(new RecordedOperation(EntityRef.of("crm.customer", target), ChangeOperation.UPDATE,
+                "{\"name\":\"Old\"}", "{\"name\":\"New\"}", OffsetDateTime.now(ZoneOffset.UTC)));
+        when(changeSets.getSession(any(ChangeSetId.class))).thenReturn(session);
+
+        mvc.perform(get("/v1/changeset/sessions/{id}", session.id().value()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(session.id().value().toString()))
+                .andExpect(jsonPath("$.status").value("OPEN"))
+                .andExpect(jsonPath("$.operations[0].targetType").value("crm.customer"))
+                .andExpect(jsonPath("$.operations[0].targetId").value(target.toString()))
+                .andExpect(jsonPath("$.operations[0].operation").value("UPDATE"))
+                .andExpect(jsonPath("$.operations[0].beforeState").value("{\"name\":\"Old\"}"));
+    }
+
+    @Test
+    void getByIdOnAnotherActorsSessionReturns403() throws Exception {
+        ChangeSetId id = ChangeSetId.newId();
+        when(changeSets.getSession(any())).thenThrow(new ChangeSetAccessDeniedException(id));
+
+        mvc.perform(get("/v1/changeset/sessions/{id}", id.value()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getByIdUnknownReturns404() throws Exception {
+        ChangeSetId id = ChangeSetId.newId();
+        when(changeSets.getSession(any())).thenThrow(new ChangeSetNotFoundException(id));
+
+        mvc.perform(get("/v1/changeset/sessions/{id}", id.value()))
+                .andExpect(status().isNotFound());
     }
 
     @Test

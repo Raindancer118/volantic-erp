@@ -16,6 +16,8 @@ import de.volantic.erp.core.entitylink.EntityRef;
 import de.volantic.erp.core.revision.BulkEditHandler;
 import de.volantic.erp.core.revision.ChangeOperation;
 import de.volantic.erp.core.revision.ReversibleResourceHandler;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -164,6 +166,20 @@ public class ChangeSetService {
         }
         changeSet.revert();
         store.save(changeSet);
+    }
+
+    /** Loads one of the current actor's sessions for inspection (status, mode, recorded operations). */
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasPermission(null, 'changeset.bulk:execute')")
+    public ChangeSet getSession(ChangeSetId session) {
+        return loadOwned(session);
+    }
+
+    /** Lists the current actor's sessions (newest first) — the basis for a session overview / Rollback UI. */
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasPermission(null, 'changeset.bulk:execute')")
+    public Page<ChangeSet> listSessions(Pageable pageable) {
+        return store.findByActor(currentActor(), pageable);
     }
 
     private ChangeSet load(ChangeSetId session) {

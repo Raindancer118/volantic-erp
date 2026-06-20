@@ -9,6 +9,8 @@ import de.volantic.erp.changeset.domain.model.ChangeSetId;
 import de.volantic.erp.changeset.domain.model.RecordedOperation;
 import de.volantic.erp.core.entitylink.EntityRef;
 import de.volantic.erp.core.revision.ChangeOperation;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.time.OffsetDateTime;
@@ -49,6 +51,11 @@ class ChangeSetStoreAdapter implements ChangeSetStore {
     @Override
     public Optional<ChangeSet> findById(ChangeSetId id) {
         return jpa.findById(id.value()).map(this::toDomain);
+    }
+
+    @Override
+    public Page<ChangeSet> findByActor(String actor, Pageable pageable) {
+        return jpa.findByActorOrderByOpenedAtDesc(actor, pageable).map(this::toDomain);
     }
 
     private ChangeSet toDomain(ChangeSetEntity entity) {

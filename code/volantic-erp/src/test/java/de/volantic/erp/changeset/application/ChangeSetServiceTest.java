@@ -20,6 +20,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -260,5 +263,40 @@ class ChangeSetServiceTest {
         // revert can compensate it instead of writing null.
         assertThat(session.operations()).singleElement()
                 .satisfies(op -> assertThat(op.beforeState()).isEqualTo("BEFORE-AT-COMMIT"));
+    }
+
+    @Test
+    void getSessionReturnsTheActorsOwnSession() {
+        ChangeSet session = ChangeSet.open("alice", ChangeSetMode.LIVE);
+        given(session);
+
+        assertThat(service.getSession(session.id())).isEqualTo(session);
+    }
+
+    @Test
+    void getSessionOfAnotherActorIsDenied() {
+        ChangeSet foreign = ChangeSet.open("bob", ChangeSetMode.LIVE);
+        given(foreign);
+
+        assertThatThrownBy(() -> service.getSession(foreign.id()))
+                .isInstanceOf(ChangeSetAccessDeniedException.class);
+    }
+
+    @Test
+    void getSessionUnknownThrowsNotFound() {
+        ChangeSetId unknown = ChangeSetId.newId();
+        when(store.findById(unknown)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getSession(unknown)).isInstanceOf(ChangeSetNotFoundException.class);
+    }
+
+    @Test
+    void listSessionsQueriesOnlyTheCurrentActorsSessions() {
+        ChangeSet session = ChangeSet.open("alice", ChangeSetMode.LIVE);
+        Pageable pageable = PageRequest.of(0, 20);
+        when(store.findByActor("alice", pageable)).thenReturn(new PageImpl<>(List.of(session)));
+
+        assertThat(service.listSessions(pageable).getContent()).containsExactly(session);
+        verify(store).findByActor(eq("alice"), eq(pageable));
     }
 }
