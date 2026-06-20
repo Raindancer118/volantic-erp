@@ -4,6 +4,12 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-20 `feat(changeset)` (104cca5) — four-eyes approval for Probemodus sessions (ADR-0006 §7)
+  - submit a Probemodus session for sign-off; reviewer approval applies it via async ApplicationModuleListener that impersonates the original requester (writes authorize against them, not the reviewer)
+  - AWAITING_APPROVAL status; request-approval REST
+  - end-to-end IT: reviewer without crm.customer:update still triggers apply, rejection discards 
+- 2026-06-20 `feat(workflow)` (63c806a) — public Approvals port + ApprovalDecided event (groundwork for four-eyes)
+  - string-typed inbound port at module root + decision event; decide() now @Transactional so the outbox listener fires 
 - 2026-06-20 `feat(changeset)` (86cd996) — filter-based mass-edit selection across all aggregates (ADR-0006 §5)
   - mass edit can target 'all resources where field=value' not just an id list
   - BulkEditHandler filterableFields()/selectIds(); BulkChange ids XOR filter; ChangeSetService resolves filter->ids via handler
