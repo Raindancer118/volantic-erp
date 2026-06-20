@@ -16,6 +16,7 @@ import de.volantic.erp.changeset.domain.model.RecordedOperation;
 import de.volantic.erp.core.entitylink.EntityRef;
 import de.volantic.erp.core.revision.BulkEditHandler;
 import de.volantic.erp.core.revision.ChangeOperation;
+import de.volantic.erp.core.revision.LifecycleResourceHandler;
 import de.volantic.erp.core.revision.ReversibleResourceHandler;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -125,6 +126,57 @@ public class ChangeSetService {
         store.save(changeSet);
     }
 
+    /**
+     * Mass-creates resources within a LIVE session (ADR-0006 §2). Each created resource is recorded as a
+     * CREATE operation so the Rollback Engine can take it back by deleting it. Not available in Probemodus
+     * (the ids do not exist until applied).
+     */
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'changeset.bulk:execute')")
+    public List<UUID> createBulk(ChangeSetId session, BulkCreate request) {
+        ChangeSet changeSet = loadOwned(session);
+        requireLive(changeSet, "create");
+        LifecycleResourceHandler lifecycle = handlers.lifecycleFor(request.resourceType());
+
+        List<UUID> created = new ArrayList<>();
+        for (Map<String, String> record : request.records()) {
+            UUID id = lifecycle.create(record);
+            String payload = serialize(record);
+            changeSet.record(new RecordedOperation(
+                    EntityRef.of(request.resourceType(), id), ChangeOperation.CREATE, null, payload, now()));
+            audit.record("changeset.bulk-created", request.resourceType(), id, payload);
+            created.add(id);
+        }
+        store.save(changeSet);
+        return created;
+    }
+
+    /**
+     * Mass-deletes the selected resources within a LIVE session (ADR-0006 §2). Each deletion captures a
+     * full snapshot first and is recorded as a DELETE operation, so the Rollback Engine can re-create the
+     * resource with its original id (forward-only — the audit history is never erased). Not available in
+     * Probemodus.
+     */
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'changeset.bulk:execute')")
+    public void deleteBulk(ChangeSetId session, BulkDelete request) {
+        ChangeSet changeSet = loadOwned(session);
+        requireLive(changeSet, "delete");
+        LifecycleResourceHandler lifecycle = handlers.lifecycleFor(request.resourceType());
+
+        for (UUID id : resolveDeleteTargets(request)) {
+            String snapshot = lifecycle.snapshot(id);
+            if (snapshot == null) {
+                continue; // already gone — nothing to delete or to compensate
+            }
+            lifecycle.delete(id);
+            changeSet.record(new RecordedOperation(
+                    EntityRef.of(request.resourceType(), id), ChangeOperation.DELETE, snapshot, null, now()));
+            audit.record("changeset.bulk-deleted", request.resourceType(), id, snapshot);
+        }
+        store.save(changeSet);
+    }
+
     /** Closes a session: a Probemodus session applies its buffered operations ("Übertragen"). */
     @Transactional
     @PreAuthorize("hasPermission(null, 'changeset.bulk:execute')")
@@ -164,8 +216,7 @@ public class ChangeSetService {
     public void revert(ChangeSetId session) {
         ChangeSet changeSet = loadOwned(session);
         for (RecordedOperation op : changeSet.operationsForReversal()) {
-            ReversibleResourceHandler reversible = handlers.reversibleFor(op.target().type());
-            reversible.compensate(op.operation(), op.target().id(), op.beforeState());
+            compensate(op);
             audit.record("changeset.reverted", op.target().type(), op.target().id(), op.beforeState());
         }
         changeSet.revert();
@@ -213,6 +264,38 @@ public class ChangeSetService {
      * ids the resource's handler matches for the given equality filter (ADR-0006 §5). Filter fields are
      * validated against the handler's {@link BulkEditHandler#filterableFields()} first.
      */
+    /** Forward-only compensation of one recorded operation, dispatched by its kind (ADR-0006 §2). */
+    private void compensate(RecordedOperation op) {
+        String type = op.target().type();
+        UUID id = op.target().id();
+        switch (op.operation()) {
+            case UPDATE -> handlers.reversibleFor(type).compensate(ChangeOperation.UPDATE, id, op.beforeState());
+            case DELETE -> handlers.lifecycleFor(type).recreate(id, op.beforeState()); // re-create from snapshot
+            case CREATE -> handlers.lifecycleFor(type).delete(id);                     // remove what was created
+        }
+    }
+
+    private static void requireLive(ChangeSet changeSet, String operation) {
+        if (changeSet.mode() != ChangeSetMode.LIVE) {
+            throw new IllegalStateException(
+                    "bulk " + operation + " is only available in a LIVE session, not the Probemodus");
+        }
+    }
+
+    private List<UUID> resolveDeleteTargets(BulkDelete request) {
+        if (!request.isFiltered()) {
+            return request.ids();
+        }
+        BulkEditHandler selector = handlers.bulkFor(request.resourceType());
+        request.filter().keySet().stream()
+                .filter(field -> !selector.filterableFields().contains(field))
+                .findFirst()
+                .ifPresent(field -> {
+                    throw new FieldNotFilterableException(request.resourceType(), field);
+                });
+        return selector.selectIds(request.filter());
+    }
+
     private static List<UUID> resolveTargets(BulkChange change, BulkEditHandler handler) {
         if (!change.isFiltered()) {
             return change.ids();

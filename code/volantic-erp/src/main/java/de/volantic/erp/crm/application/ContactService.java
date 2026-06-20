@@ -75,6 +75,19 @@ public class ContactService {
         return contacts.save(contact);
     }
 
+    /**
+     * Re-creates a previously deleted contact with its original id (Rollback Engine compensation of a
+     * DELETE). Re-publishes the link event so the 360° graph edge is restored.
+     */
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'crm.contact:write')")
+    public Contact recreateContact(ContactId id, PartnerRef owner,
+                                   String firstName, String lastName, String email, String phone) {
+        Contact contact = contacts.save(Contact.reconstitute(id, owner, firstName, lastName, email, phone));
+        events.publishEvent(new PartnerContactLinked(owner, contact.id()));
+        return contact;
+    }
+
     @Transactional
     @PreAuthorize("hasPermission(null, 'crm.contact:write')")
     public void deleteContact(ContactId id) {

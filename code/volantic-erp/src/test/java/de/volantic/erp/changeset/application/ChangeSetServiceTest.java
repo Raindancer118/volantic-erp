@@ -15,6 +15,7 @@ import de.volantic.erp.changeset.domain.model.RecordedOperation;
 import de.volantic.erp.core.entitylink.EntityRef;
 import de.volantic.erp.core.revision.BulkEditHandler;
 import de.volantic.erp.core.revision.ChangeOperation;
+import de.volantic.erp.core.revision.LifecycleResourceHandler;
 import de.volantic.erp.core.revision.ReversibleResourceHandler;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,6 +58,7 @@ class ChangeSetServiceTest {
     private final ChangeSetStore store = mock(ChangeSetStore.class);
     private final BulkEditHandler bulkHandler = mock(BulkEditHandler.class);
     private final ReversibleResourceHandler revHandler = mock(ReversibleResourceHandler.class);
+    private final LifecycleResourceHandler lifecycleHandler = mock(LifecycleResourceHandler.class);
     private final AuditTrail audit = mock(AuditTrail.class);
     private final ObjectMapper json = new ObjectMapper();
 
@@ -71,7 +73,9 @@ class ChangeSetServiceTest {
         when(bulkHandler.resourceType()).thenReturn(TYPE);
         when(bulkHandler.editableFields()).thenReturn(Set.of("name", "email"));
         when(revHandler.resourceType()).thenReturn(TYPE);
-        ResourceHandlers handlers = new ResourceHandlers(List.of(bulkHandler), List.of(revHandler));
+        when(lifecycleHandler.resourceType()).thenReturn(TYPE);
+        ResourceHandlers handlers = new ResourceHandlers(
+                List.of(bulkHandler), List.of(revHandler), List.of(lifecycleHandler));
         service = new ChangeSetService(store, handlers, audit, json);
         // The sessions under test are opened by "alice"; authenticate as her so the ownership check passes.
         SecurityContextHolder.getContext().setAuthentication(
@@ -291,6 +295,64 @@ class ChangeSetServiceTest {
                 .isInstanceOf(FieldNotFilterableException.class);
         verify(bulkHandler, never()).selectIds(any());
         verify(bulkHandler, never()).applyChange(any(), any());
+    }
+
+    @Test
+    void createBulkCreatesEachRecordAndRecordsCreateOperations() {
+        ChangeSet session = ChangeSet.open("alice", ChangeSetMode.LIVE);
+        given(session);
+        when(lifecycleHandler.create(Map.of("firstName", "Ann"))).thenReturn(id1);
+        when(lifecycleHandler.create(Map.of("firstName", "Bob"))).thenReturn(id2);
+
+        List<UUID> ids = service.createBulk(session.id(),
+                new BulkCreate(TYPE, List.of(Map.of("firstName", "Ann"), Map.of("firstName", "Bob"))));
+
+        assertThat(ids).containsExactly(id1, id2);
+        assertThat(session.operations()).extracting(RecordedOperation::operation)
+                .containsOnly(ChangeOperation.CREATE);
+    }
+
+    @Test
+    void createAndDeleteAreRejectedInProbemodus() {
+        ChangeSet session = ChangeSet.open("alice", ChangeSetMode.DEFERRED);
+        given(session);
+
+        assertThatThrownBy(() -> service.createBulk(session.id(), new BulkCreate(TYPE, List.of(Map.of("x", "y")))))
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> service.deleteBulk(session.id(), BulkDelete.byIds(TYPE, List.of(id1))))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void deleteBulkSnapshotsThenDeletesAndSkipsAbsentOnes() {
+        ChangeSet session = ChangeSet.open("alice", ChangeSetMode.LIVE);
+        given(session);
+        when(lifecycleHandler.snapshot(id1)).thenReturn("SNAP-1");
+        when(lifecycleHandler.snapshot(id2)).thenReturn(null); // already gone
+
+        service.deleteBulk(session.id(), BulkDelete.byIds(TYPE, List.of(id1, id2)));
+
+        verify(lifecycleHandler).delete(id1);
+        verify(lifecycleHandler, never()).delete(id2);
+        assertThat(session.operations()).singleElement().satisfies(op -> {
+            assertThat(op.operation()).isEqualTo(ChangeOperation.DELETE);
+            assertThat(op.beforeState()).isEqualTo("SNAP-1");
+        });
+    }
+
+    @Test
+    void revertCompensatesCreateByDeletingAndDeleteByRecreating() {
+        ChangeSet session = ChangeSet.open("alice", ChangeSetMode.LIVE);
+        session.record(new RecordedOperation(
+                EntityRef.of(TYPE, id1), ChangeOperation.CREATE, null, "{}", OffsetDateTime.now()));
+        session.record(new RecordedOperation(
+                EntityRef.of(TYPE, id2), ChangeOperation.DELETE, "SNAP", null, OffsetDateTime.now()));
+        given(session);
+
+        service.revert(session.id());
+
+        verify(lifecycleHandler).delete(id1);            // CREATE → delete
+        verify(lifecycleHandler).recreate(id2, "SNAP");  // DELETE → re-create from snapshot
     }
 
     @Test

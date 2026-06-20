@@ -1,13 +1,20 @@
 package de.volantic.erp.changeset;
 
 import de.volantic.erp.changeset.application.BulkChange;
+import de.volantic.erp.changeset.application.BulkCreate;
+import de.volantic.erp.changeset.application.BulkDelete;
 import de.volantic.erp.changeset.application.BulkPreview;
 import de.volantic.erp.changeset.application.ChangeSetService;
 import de.volantic.erp.changeset.domain.model.ChangeSetId;
 import de.volantic.erp.changeset.domain.model.ChangeSetStatus;
+import de.volantic.erp.crm.application.ContactService;
 import de.volantic.erp.crm.application.CustomerService;
+import de.volantic.erp.crm.domain.model.Contact;
+import de.volantic.erp.crm.domain.model.ContactId;
 import de.volantic.erp.crm.domain.model.Customer;
 import de.volantic.erp.crm.domain.model.CustomerId;
+import de.volantic.erp.crm.domain.model.PartnerRef;
+import de.volantic.erp.crm.domain.model.PartnerType;
 import de.volantic.erp.security.AccessScope;
 import de.volantic.erp.security.SecurityAdmin;
 import org.junit.jupiter.api.AfterEach;
@@ -26,8 +33,10 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * End-to-end integration test of the whole change-set machinery (ADR-0006) against a real PostgreSQL
@@ -66,15 +75,18 @@ class ChangeSetFlowIT {
     @Autowired
     private ChangeSetService changeSets;
 
+    @Autowired
+    private ContactService contacts;
+
     @BeforeEach
     void seedRbacAndAuthenticate() {
         if (!rbacSeeded) {
-            Set.of("changeset.bulk:execute", "changeset.probemodus:activate", "changeset.rollback:revert",
-                    "crm.customer:create", "crm.customer:read", "crm.customer:update")
-                    .forEach(key -> securityAdmin.definePermission(key, key));
-            securityAdmin.defineRole("changeset-admin", "Change-set admin", Set.of(
+            Set<String> permissions = Set.of(
                     "changeset.bulk:execute", "changeset.probemodus:activate", "changeset.rollback:revert",
-                    "crm.customer:create", "crm.customer:read", "crm.customer:update"));
+                    "crm.customer:create", "crm.customer:read", "crm.customer:update",
+                    "crm.contact:read", "crm.contact:write");
+            permissions.forEach(key -> securityAdmin.definePermission(key, key));
+            securityAdmin.defineRole("changeset-admin", "Change-set admin", permissions);
             securityAdmin.provisionUser(ACTOR, "tester", "tester@volantic.de");
             securityAdmin.assignRole(ACTOR, "changeset-admin", AccessScope.GLOBAL);
             rbacSeeded = true;
@@ -165,6 +177,51 @@ class ChangeSetFlowIT {
 
         assertThat(nameOf(first)).isEqualTo("Alpha");
         assertThat(nameOf(second)).isEqualTo("Beta");
+    }
+
+    @Test
+    void bulkCreateTakesEffectAndIsReversedByDeleting() {
+        CustomerId owner = newCustomer("C-OWNER-1", "Owner GmbH");
+        Map<String, String> ownerRef = Map.of("ownerType", "CUSTOMER", "ownerId", owner.value().toString());
+
+        ChangeSetId session = changeSets.beginLive();
+        List<UUID> created = changeSets.createBulk(session, new BulkCreate("crm.contact", List.of(
+                contactRecord(ownerRef, "Ann", "Meyer"),
+                contactRecord(ownerRef, "Bob", "Schulz"))));
+
+        assertThat(created).hasSize(2);
+        assertThat(contacts.getContact(new ContactId(created.get(0))).firstName()).isEqualTo("Ann");
+
+        changeSets.revert(session);
+
+        // Both created contacts are taken back (deleted).
+        for (UUID id : created) {
+            assertThatThrownBy(() -> contacts.getContact(new ContactId(id))).isInstanceOf(RuntimeException.class);
+        }
+    }
+
+    @Test
+    void bulkDeleteTakesEffectAndIsReversedByRecreatingWithTheSameId() {
+        PartnerRef owner = PartnerRef.of(PartnerType.CUSTOMER, newCustomer("C-OWNER-2", "Owner2 GmbH").value());
+        Contact contact = contacts.createContact(owner, "Clara", "Nguyen", "clara@acme.de", null);
+        ContactId id = contact.id();
+
+        ChangeSetId session = changeSets.beginLive();
+        changeSets.deleteBulk(session, BulkDelete.byIds("crm.contact", List.of(id.value())));
+        assertThatThrownBy(() -> contacts.getContact(id)).isInstanceOf(RuntimeException.class);
+
+        changeSets.revert(session);
+
+        // The Rollback Engine re-created it with the same id and data (forward-only compensation).
+        Contact restored = contacts.getContact(id);
+        assertThat(restored.firstName()).isEqualTo("Clara");
+        assertThat(restored.lastName()).isEqualTo("Nguyen");
+        assertThat(restored.owner()).isEqualTo(owner);
+    }
+
+    private static Map<String, String> contactRecord(Map<String, String> ownerRef, String first, String last) {
+        return Map.of("ownerType", ownerRef.get("ownerType"), "ownerId", ownerRef.get("ownerId"),
+                "firstName", first, "lastName", last, "email", "", "phone", "");
     }
 
     @Test

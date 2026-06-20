@@ -187,6 +187,29 @@ class ChangeSetControllerContractTest {
     }
 
     @Test
+    void bulkCreateReturns200WithTheCreatedIds() throws Exception {
+        UUID created = UUID.randomUUID();
+        when(changeSets.createBulk(any(ChangeSetId.class), any())).thenReturn(List.of(created));
+
+        mvc.perform(post("/v1/changeset/sessions/{id}/bulk-create", UUID.randomUUID())
+                        .contentType(APPLICATION_JSON).content("""
+                        {"resourceType":"crm.contact","records":[{"firstName":"Ann","lastName":"M"}]}"""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0]").value(created.toString()));
+    }
+
+    @Test
+    void bulkDeleteReturns204() throws Exception {
+        UUID target = UUID.randomUUID();
+        mvc.perform(post("/v1/changeset/sessions/{id}/bulk-delete", UUID.randomUUID())
+                        .contentType(APPLICATION_JSON).content("""
+                        {"resourceType":"crm.contact","ids":["%s"]}""".formatted(target)))
+                .andExpect(status().isNoContent());
+
+        verify(changeSets).deleteBulk(any(ChangeSetId.class), any());
+    }
+
+    @Test
     void commitReturns204() throws Exception {
         mvc.perform(post("/v1/changeset/sessions/{id}/commit", UUID.randomUUID()))
                 .andExpect(status().isNoContent());

@@ -78,6 +78,19 @@ public class AddressService {
         return addresses.save(address);
     }
 
+    /**
+     * Re-creates a previously deleted address with its original id (Rollback Engine compensation of a
+     * DELETE). Re-publishes the link event so the 360° graph edge is restored.
+     */
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'crm.address:write')")
+    public Address recreateAddress(AddressId id, PartnerRef owner, AddressType type,
+                                   String street, String postalCode, String city, String countryCode) {
+        Address address = addresses.save(Address.reconstitute(id, owner, type, street, postalCode, city, countryCode));
+        events.publishEvent(new PartnerAddressLinked(owner, address.id()));
+        return address;
+    }
+
     @Transactional
     @PreAuthorize("hasPermission(null, 'crm.address:write')")
     public void deleteAddress(AddressId id) {

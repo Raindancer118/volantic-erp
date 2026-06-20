@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -62,6 +63,17 @@ class ChangeSetController {
     @PostMapping("/sessions/{id}/apply")
     ResponseEntity<Void> apply(@PathVariable UUID id, @Valid @RequestBody BulkChangeRequest request) {
         changeSets.apply(new ChangeSetId(id), request.toCommand());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/sessions/{id}/bulk-create")
+    List<UUID> bulkCreate(@PathVariable UUID id, @Valid @RequestBody BulkCreateRequest request) {
+        return changeSets.createBulk(new ChangeSetId(id), request.toCommand());
+    }
+
+    @PostMapping("/sessions/{id}/bulk-delete")
+    ResponseEntity<Void> bulkDelete(@PathVariable UUID id, @Valid @RequestBody BulkDeleteRequest request) {
+        changeSets.deleteBulk(new ChangeSetId(id), request.toCommand());
         return ResponseEntity.noContent().build();
     }
 
