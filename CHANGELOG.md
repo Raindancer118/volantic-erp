@@ -4,6 +4,9 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-20 `refactor(crm)` (1a47ccd) — reuse EmailAddresses in Supplier (remove duplicate, weaker email check)
+  - Supplier used a weaker contains('@') check that drifted from Customer/Contact's shared EmailAddresses.normalize
+  - now rejects malformed e.g. a@b consistently 
 - 2026-06-20 `feat(changeset)` (7917d37) — REST v1 API for sessions + bulk preview/apply (M4)
   - /v1/changeset: open LIVE/Probemodus session, dry-run preview, apply within session, commit/discard/revert
   - ChangeSetExceptionHandler → RFC 7807 (404/403/422/409/400)
