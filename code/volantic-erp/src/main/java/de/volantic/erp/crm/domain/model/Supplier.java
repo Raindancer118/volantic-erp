@@ -72,13 +72,6 @@ public final class Supplier {
     }
 
     private static String normalizeEmail(String email) {
-        if (email == null || email.isBlank()) {
-            return null;
-        }
-        String normalized = email.strip().toLowerCase();
-        if (!normalized.contains("@")) {
-            throw new IllegalArgumentException("email must contain '@'");
-        }
-        return normalized;
+        return EmailAddresses.normalize(email);
     }
 }
