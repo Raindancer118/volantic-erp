@@ -4,6 +4,11 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-20 `feat(sales)` (01d6298) — invoice document (Beleg) with GoBD post + storno
+  - Invoice aggregate DRAFT->POSTED (gap-free number from core.numberrange, immutable)->CANCELLED; correction only via storno (credit doc in the same range, original never altered)
+  - InvoiceService create/post/cancel/get/list, @PreAuthorize sales.invoice:*, audit-trailed
+  - hexagonal + Flyway sales/V401 + REST /v1/sales/invoices
+  - domain/service/contract tests + end-to-end IT (consecutive numbering, posted immutability, storno) vs real Postgres 
 - 2026-06-20 `feat(changeset)` (104cca5) — four-eyes approval for Probemodus sessions (ADR-0006 §7)
   - submit a Probemodus session for sign-off; reviewer approval applies it via async ApplicationModuleListener that impersonates the original requester (writes authorize against them, not the reviewer)
   - AWAITING_APPROVAL status; request-approval REST
