@@ -4,6 +4,12 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-21 `feat(changeset,sales)` (cfaea71) — bulk-post documents reversible by storno (ADR-0006 §2 — Beleg-Pfad geschlossen)
+  - neue SPI DocumentPostingHandler (post/storno) + ChangeOperation.POST → Kompensation via Storno (kein Delete)
+  - ChangeSetService.postDocuments LIVE-only, revert→storno
+  - sales InvoicePostingHandler über InvoiceService, REST /bulk-post
+  - Session postet bestehende Drafts per id (Mass-Fakturierung)
+  - end-to-end IT (2 Drafts bulk-posted, revert→beide CANCELLED via Storno) gegen echtes Postgres 
 - 2026-06-20 `feat(sales)` (01d6298) — invoice document (Beleg) with GoBD post + storno
   - Invoice aggregate DRAFT->POSTED (gap-free number from core.numberrange, immutable)->CANCELLED; correction only via storno (credit doc in the same range, original never altered)
   - InvoiceService create/post/cancel/get/list, @PreAuthorize sales.invoice:*, audit-trailed
