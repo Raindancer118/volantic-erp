@@ -84,4 +84,24 @@ public class CustomerService {
         customer.changeEmail(email);
         return customers.save(customer);
     }
+
+    /** Deletes a customer (used directly and as a change-set bulk delete). Idempotent target check. */
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'crm.customer:delete')")
+    public void deleteCustomer(CustomerId id) {
+        if (!customers.deleteById(id)) {
+            throw new CustomerNotFoundException(id);
+        }
+    }
+
+    /**
+     * Re-creates a previously deleted customer with its original id and business key (Rollback Engine
+     * compensation of a DELETE). Bypasses the duplicate-number check on purpose — it restores exactly
+     * what was removed, including its customer number.
+     */
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'crm.customer:create')")
+    public Customer recreateCustomer(CustomerId id, String customerNumber, String name, String email) {
+        return customers.save(Customer.reconstitute(id, customerNumber, name, email));
+    }
 }

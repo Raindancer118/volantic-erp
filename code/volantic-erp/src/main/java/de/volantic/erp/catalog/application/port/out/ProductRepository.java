@@ -23,4 +23,7 @@ public interface ProductRepository {
 
     /** Ids of products matching the optional equality filter (null fields ignored, ANDed). */
     List<ProductId> findIds(String name, String currencyCode);
+
+    /** Deletes the product; returns {@code false} if it did not exist. */
+    boolean deleteById(ProductId id);
 }

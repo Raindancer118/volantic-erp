@@ -73,4 +73,23 @@ public class ProductService {
         product.reprice(listPrice);
         return products.save(product);
     }
+
+    /** Deletes a product (used directly and as a change-set bulk delete). */
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'catalog.product:delete')")
+    public void deleteProduct(ProductId id) {
+        if (!products.deleteById(id)) {
+            throw new CatalogExceptions.ProductNotFound(id);
+        }
+    }
+
+    /**
+     * Re-creates a previously deleted product with its original id and business key ({@code sku}) — the
+     * Rollback Engine compensation of a DELETE. Bypasses the duplicate-SKU check; it restores what was removed.
+     */
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'catalog.product:create')")
+    public Product recreateProduct(ProductId id, String sku, String name, Money listPrice) {
+        return products.save(Product.reconstitute(id, sku, name, listPrice));
+    }
 }

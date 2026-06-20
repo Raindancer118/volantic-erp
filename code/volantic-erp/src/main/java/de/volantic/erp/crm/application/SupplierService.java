@@ -71,4 +71,23 @@ public class SupplierService {
         supplier.changeEmail(email);
         return suppliers.save(supplier);
     }
+
+    /** Deletes a supplier (used directly and as a change-set bulk delete). */
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'crm.supplier:delete')")
+    public void deleteSupplier(SupplierId id) {
+        if (!suppliers.deleteById(id)) {
+            throw new SupplierNotFoundException(id);
+        }
+    }
+
+    /**
+     * Re-creates a previously deleted supplier with its original id and business key (Rollback Engine
+     * compensation of a DELETE). Bypasses the duplicate-number check — it restores exactly what was removed.
+     */
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'crm.supplier:create')")
+    public Supplier recreateSupplier(SupplierId id, String supplierNumber, String name, String email) {
+        return suppliers.save(Supplier.reconstitute(id, supplierNumber, name, email));
+    }
 }

@@ -21,4 +21,7 @@ public interface SupplierRepository {
 
     /** Ids of suppliers matching the optional equality filter (null fields ignored, ANDed). */
     List<SupplierId> findIds(String name, String email);
+
+    /** Deletes the supplier; returns {@code false} if it did not exist. */
+    boolean deleteById(SupplierId id);
 }

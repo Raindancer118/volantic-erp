@@ -92,7 +92,7 @@ class ChangeSetFlowIT {
         if (!rbacSeeded) {
             Set<String> requesterPermissions = Set.of(
                     "changeset.bulk:execute", "changeset.probemodus:activate", "changeset.rollback:revert",
-                    "crm.customer:create", "crm.customer:read", "crm.customer:update",
+                    "crm.customer:create", "crm.customer:read", "crm.customer:update", "crm.customer:delete",
                     "crm.contact:read", "crm.contact:write",
                     "workflow.approval:start", "workflow.approval:read");
             // The reviewer can only decide approvals — deliberately NOT crm.customer:update, so the apply
@@ -199,6 +199,39 @@ class ChangeSetFlowIT {
 
         assertThat(nameOf(first)).isEqualTo("Alpha");
         assertThat(nameOf(second)).isEqualTo("Beta");
+    }
+
+    @Test
+    void customerBulkCreateIsReversedByDeleting() {
+        ChangeSetId session = changeSets.beginLive();
+        List<UUID> created = changeSets.createBulk(session, new BulkCreate("crm.customer", List.of(
+                Map.of("customerNumber", "C-BULK-1", "name", "Alpha", "email", "a@acme.de"),
+                Map.of("customerNumber", "C-BULK-2", "name", "Beta", "email", "b@acme.de"))));
+
+        assertThat(created).hasSize(2);
+        assertThat(customers.getCustomer(new CustomerId(created.get(0))).name()).isEqualTo("Alpha");
+
+        changeSets.revert(session);
+
+        for (UUID id : created) {
+            assertThatThrownBy(() -> customers.getCustomer(new CustomerId(id))).isInstanceOf(RuntimeException.class);
+        }
+    }
+
+    @Test
+    void customerBulkDeleteIsReversedByRecreatingWithSameIdAndNumber() {
+        CustomerId id = newCustomer("C-DEL-1", "DeleteMe");
+
+        ChangeSetId session = changeSets.beginLive();
+        changeSets.deleteBulk(session, BulkDelete.byIds("crm.customer", List.of(id.value())));
+        assertThatThrownBy(() -> customers.getCustomer(id)).isInstanceOf(RuntimeException.class);
+
+        changeSets.revert(session);
+
+        // Re-created with the original id, number and name (forward-only compensation).
+        Customer restored = customers.getCustomer(id);
+        assertThat(restored.customerNumber()).isEqualTo("C-DEL-1");
+        assertThat(restored.name()).isEqualTo("DeleteMe");
     }
 
     @Test

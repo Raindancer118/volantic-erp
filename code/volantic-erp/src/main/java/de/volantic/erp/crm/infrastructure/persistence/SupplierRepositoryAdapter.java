@@ -50,6 +50,15 @@ class SupplierRepositoryAdapter implements SupplierRepository {
         return jpa.findIdsByFilter(name, email).stream().map(SupplierId::new).toList();
     }
 
+    @Override
+    public boolean deleteById(SupplierId id) {
+        if (!jpa.existsById(id.value())) {
+            return false;
+        }
+        jpa.deleteById(id.value());
+        return true;
+    }
+
     private Supplier toDomain(SupplierEntity entity) {
         return Supplier.reconstitute(new SupplierId(entity.getId()), entity.getVersion(),
                 entity.supplierNumber(), entity.name(), entity.email());

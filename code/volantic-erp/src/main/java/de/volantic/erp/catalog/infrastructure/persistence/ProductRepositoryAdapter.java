@@ -53,4 +53,13 @@ class ProductRepositoryAdapter implements ProductRepository {
     public List<ProductId> findIds(String name, String currencyCode) {
         return jpa.findIdsByFilter(name, currencyCode).stream().map(ProductId::new).toList();
     }
+
+    @Override
+    public boolean deleteById(ProductId id) {
+        if (!jpa.existsById(id.value())) {
+            return false;
+        }
+        jpa.deleteById(id.value());
+        return true;
+    }
 }

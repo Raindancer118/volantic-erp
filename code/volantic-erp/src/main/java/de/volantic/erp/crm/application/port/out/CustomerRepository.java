@@ -24,4 +24,7 @@ public interface CustomerRepository {
 
     /** Ids of customers matching the optional equality filter (null fields ignored, ANDed). */
     List<CustomerId> findIds(String name, String email);
+
+    /** Deletes the customer; returns {@code false} if it did not exist. */
+    boolean deleteById(CustomerId id);
 }

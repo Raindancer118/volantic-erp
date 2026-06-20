@@ -57,6 +57,15 @@ class CustomerRepositoryAdapter implements CustomerRepository {
         return jpa.findIdsByFilter(name, email).stream().map(CustomerId::new).toList();
     }
 
+    @Override
+    public boolean deleteById(CustomerId id) {
+        if (!jpa.existsById(id.value())) {
+            return false;
+        }
+        jpa.deleteById(id.value());
+        return true;
+    }
+
     private Customer toDomain(CustomerEntity entity) {
         return Customer.reconstitute(new CustomerId(entity.getId()), entity.getVersion(),
                 entity.customerNumber(), entity.name(), entity.email());
