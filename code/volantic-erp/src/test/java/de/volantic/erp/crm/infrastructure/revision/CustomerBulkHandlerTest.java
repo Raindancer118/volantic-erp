@@ -7,6 +7,7 @@ import de.volantic.erp.crm.domain.model.Customer;
 import de.volantic.erp.crm.domain.model.CustomerId;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -58,5 +59,17 @@ class CustomerBulkHandlerTest {
         handler.applyChange(id, Map.of("name", "Acme Corp"));
 
         verify(customers).updateCustomer(eq(new CustomerId(id)), eq("Acme Corp"), eq("info@acme.de"));
+    }
+
+    @Test
+    void filterableFieldsAndSelectIdsDelegateToTheService() {
+        assertThat(handler.filterableFields()).containsExactlyInAnyOrder("name", "email");
+
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        when(customers.findCustomerIds("Acme", null)).thenReturn(List.of(new CustomerId(a), new CustomerId(b)));
+
+        assertThat(handler.selectIds(Map.of("name", "Acme"))).containsExactly(a, b);
+        verify(customers).findCustomerIds("Acme", null);
     }
 }

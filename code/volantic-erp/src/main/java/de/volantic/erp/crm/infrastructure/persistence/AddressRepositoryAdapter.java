@@ -3,11 +3,13 @@ package de.volantic.erp.crm.infrastructure.persistence;
 import de.volantic.erp.crm.application.port.out.AddressRepository;
 import de.volantic.erp.crm.domain.model.Address;
 import de.volantic.erp.crm.domain.model.AddressId;
+import de.volantic.erp.crm.domain.model.AddressType;
 import de.volantic.erp.crm.domain.model.PartnerRef;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
 
 /** Outbound adapter for {@link AddressRepository}: maps between domain {@link Address} and JPA. */
@@ -47,6 +49,11 @@ class AddressRepositoryAdapter implements AddressRepository {
         }
         jpa.deleteById(id.value());
         return true;
+    }
+
+    @Override
+    public List<AddressId> findIds(AddressType type, String city, String postalCode, String countryCode) {
+        return jpa.findIdsByFilter(type, city, postalCode, countryCode).stream().map(AddressId::new).toList();
     }
 
     private Address toDomain(AddressEntity entity) {

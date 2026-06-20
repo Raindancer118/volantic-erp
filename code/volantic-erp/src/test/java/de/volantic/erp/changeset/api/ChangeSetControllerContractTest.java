@@ -5,6 +5,7 @@ import de.volantic.erp.changeset.application.BulkPreview;
 import de.volantic.erp.changeset.application.ChangeSetExceptions.ChangeSetAccessDeniedException;
 import de.volantic.erp.changeset.application.ChangeSetExceptions.ChangeSetNotFoundException;
 import de.volantic.erp.changeset.application.ChangeSetExceptions.FieldNotEditableException;
+import de.volantic.erp.changeset.application.ChangeSetExceptions.FieldNotFilterableException;
 import de.volantic.erp.changeset.application.ChangeSetExceptions.UnknownResourceTypeException;
 import de.volantic.erp.changeset.application.ChangeSetService;
 import de.volantic.erp.changeset.domain.model.ChangeSet;
@@ -130,6 +131,39 @@ class ChangeSetControllerContractTest {
                 .andExpect(status().isBadRequest());
 
         verify(changeSets, never()).apply(any(), any());
+    }
+
+    @Test
+    void applyByFilterForwardsAFilteredChange() throws Exception {
+        ChangeSetId id = ChangeSetId.newId();
+
+        mvc.perform(post("/v1/changeset/sessions/{id}/apply", id.value())
+                        .contentType(APPLICATION_JSON).content("""
+                        {"resourceType":"crm.customer","filter":{"email":"info@acme.de"},"fieldChanges":{"city":"Hamburg"}}"""))
+                .andExpect(status().isNoContent());
+
+        ArgumentCaptor<BulkChange> changeCaptor = ArgumentCaptor.forClass(BulkChange.class);
+        verify(changeSets).apply(any(ChangeSetId.class), changeCaptor.capture());
+        assertThat(changeCaptor.getValue().isFiltered()).isTrue();
+        assertThat(changeCaptor.getValue().filter()).containsEntry("email", "info@acme.de");
+        assertThat(changeCaptor.getValue().ids()).isEmpty();
+    }
+
+    @Test
+    void requestWithBothIdsAndFilterReturns400() throws Exception {
+        mvc.perform(post("/v1/changeset/preview").contentType(APPLICATION_JSON).content("""
+                        {"resourceType":"crm.customer","ids":["%s"],"filter":{"email":"x@y.de"},"fieldChanges":{}}"""
+                        .formatted(UUID.randomUUID())))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void nonFilterableFieldReturns422() throws Exception {
+        when(changeSets.preview(any())).thenThrow(new FieldNotFilterableException("crm.customer", "city"));
+
+        mvc.perform(post("/v1/changeset/preview").contentType(APPLICATION_JSON).content("""
+                        {"resourceType":"crm.customer","filter":{"city":"Hamburg"},"fieldChanges":{"name":"X"}}"""))
+                .andExpect(status().isUnprocessableEntity());
     }
 
     @Test

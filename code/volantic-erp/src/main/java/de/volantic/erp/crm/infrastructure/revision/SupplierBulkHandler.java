@@ -9,6 +9,7 @@ import de.volantic.erp.crm.domain.model.SupplierId;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -59,5 +60,16 @@ class SupplierBulkHandler extends AbstractFieldMapHandler {
     @Override
     protected void writeFields(UUID id, Map<String, String> fields) {
         suppliers.updateSupplier(new SupplierId(id), fields.get(FIELD_NAME), fields.get(FIELD_EMAIL));
+    }
+
+    @Override
+    public Set<String> filterableFields() {
+        return Set.of(FIELD_NAME, FIELD_EMAIL);
+    }
+
+    @Override
+    public List<UUID> selectIds(Map<String, String> filter) {
+        return suppliers.findSupplierIds(filter.get(FIELD_NAME), filter.get(FIELD_EMAIL)).stream()
+                .map(SupplierId::value).toList();
     }
 }

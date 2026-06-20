@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
 
 /** Outbound adapter for {@link SupplierRepository}: maps between domain {@link Supplier} and JPA. */
@@ -41,6 +42,11 @@ class SupplierRepositoryAdapter implements SupplierRepository {
     @Override
     public Page<Supplier> findAll(Pageable pageable) {
         return jpa.findAll(pageable).map(this::toDomain);
+    }
+
+    @Override
+    public List<SupplierId> findIds(String name, String email) {
+        return jpa.findIdsByFilter(name, email).stream().map(SupplierId::new).toList();
     }
 
     private Supplier toDomain(SupplierEntity entity) {

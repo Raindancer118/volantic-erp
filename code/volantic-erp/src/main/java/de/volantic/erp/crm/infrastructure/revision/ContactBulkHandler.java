@@ -9,6 +9,7 @@ import de.volantic.erp.crm.domain.model.ContactId;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -65,5 +66,17 @@ class ContactBulkHandler extends AbstractFieldMapHandler {
         contacts.updateContact(new ContactId(id),
                 fields.get(FIELD_FIRST_NAME), fields.get(FIELD_LAST_NAME),
                 fields.get(FIELD_EMAIL), fields.get(FIELD_PHONE));
+    }
+
+    @Override
+    public Set<String> filterableFields() {
+        return Set.of(FIELD_FIRST_NAME, FIELD_LAST_NAME, FIELD_EMAIL);
+    }
+
+    @Override
+    public List<UUID> selectIds(Map<String, String> filter) {
+        return contacts.findContactIds(
+                        filter.get(FIELD_FIRST_NAME), filter.get(FIELD_LAST_NAME), filter.get(FIELD_EMAIL))
+                .stream().map(ContactId::value).toList();
     }
 }

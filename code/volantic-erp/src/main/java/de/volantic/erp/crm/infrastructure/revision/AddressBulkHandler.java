@@ -10,6 +10,7 @@ import de.volantic.erp.crm.domain.model.AddressType;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -71,9 +72,30 @@ class AddressBulkHandler extends AbstractFieldMapHandler {
                 fields.get(FIELD_CITY), fields.get(FIELD_COUNTRY_CODE));
     }
 
+    @Override
+    public Set<String> filterableFields() {
+        return Set.of(FIELD_TYPE, FIELD_CITY, FIELD_POSTAL_CODE, FIELD_COUNTRY_CODE);
+    }
+
+    @Override
+    public List<UUID> selectIds(Map<String, String> filter) {
+        AddressType type = filterType(filter.get(FIELD_TYPE));
+        String countryCode = filter.get(FIELD_COUNTRY_CODE);
+        return addresses.findAddressIds(type, filter.get(FIELD_CITY), filter.get(FIELD_POSTAL_CODE),
+                        countryCode == null ? null : countryCode.strip().toUpperCase())
+                .stream().map(AddressId::value).toList();
+    }
+
+    /** A blank/absent value applied to a write defaults to {@link AddressType#DEFAULT}. */
     private static AddressType parseType(String value) {
+        AddressType type = filterType(value);
+        return type == null ? AddressType.DEFAULT : type;
+    }
+
+    /** As a filter, a blank/absent type means "do not filter by type" ({@code null}), not DEFAULT. */
+    private static AddressType filterType(String value) {
         if (value == null || value.isBlank()) {
-            return AddressType.DEFAULT;
+            return null;
         }
         try {
             return AddressType.valueOf(value.strip().toUpperCase());

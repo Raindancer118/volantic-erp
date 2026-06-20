@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
 
 /** Outbound adapter for {@link ContactRepository}: maps between domain {@link Contact} and JPA. */
@@ -47,6 +48,11 @@ class ContactRepositoryAdapter implements ContactRepository {
         }
         jpa.deleteById(id.value());
         return true;
+    }
+
+    @Override
+    public List<ContactId> findIds(String firstName, String lastName, String email) {
+        return jpa.findIdsByFilter(firstName, lastName, email).stream().map(ContactId::new).toList();
     }
 
     private Contact toDomain(ContactEntity entity) {

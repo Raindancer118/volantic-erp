@@ -35,4 +35,11 @@ public final class ChangeSetExceptions {
             super("field '" + field + "' is not editable in bulk for " + resourceType);
         }
     }
+
+    /** A requested filter field cannot be used to select resources of this type (→ 422). */
+    public static final class FieldNotFilterableException extends RuntimeException {
+        public FieldNotFilterableException(String resourceType, String field) {
+            super("field '" + field + "' cannot be used as a selection filter for " + resourceType);
+        }
+    }
 }

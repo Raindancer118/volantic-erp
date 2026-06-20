@@ -10,6 +10,7 @@ import de.volantic.erp.core.revision.AbstractFieldMapHandler;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -65,5 +66,16 @@ class ProductBulkHandler extends AbstractFieldMapHandler {
     protected void writeFields(UUID id, Map<String, String> fields) {
         Money price = Money.of(fields.get(FIELD_PRICE_AMOUNT), fields.get(FIELD_PRICE_CURRENCY));
         products.updateProduct(new ProductId(id), fields.get(FIELD_NAME), price);
+    }
+
+    @Override
+    public Set<String> filterableFields() {
+        return Set.of(FIELD_NAME, FIELD_PRICE_CURRENCY);
+    }
+
+    @Override
+    public List<UUID> selectIds(Map<String, String> filter) {
+        return products.findProductIds(filter.get(FIELD_NAME), filter.get(FIELD_PRICE_CURRENCY)).stream()
+                .map(ProductId::value).toList();
     }
 }

@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -45,6 +46,11 @@ class CustomerRepositoryAdapter implements CustomerRepository {
     @Override
     public Page<Customer> findAll(Pageable pageable) {
         return jpa.findAll(pageable).map(this::toDomain);
+    }
+
+    @Override
+    public List<CustomerId> findIds(String name, String email) {
+        return jpa.findIdsByFilter(name, email).stream().map(CustomerId::new).toList();
     }
 
     private Customer toDomain(CustomerEntity entity) {

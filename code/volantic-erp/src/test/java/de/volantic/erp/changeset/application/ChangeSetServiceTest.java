@@ -5,6 +5,7 @@ import de.volantic.erp.audit.AuditTrail;
 import de.volantic.erp.changeset.application.ChangeSetExceptions.ChangeSetAccessDeniedException;
 import de.volantic.erp.changeset.application.ChangeSetExceptions.ChangeSetNotFoundException;
 import de.volantic.erp.changeset.application.ChangeSetExceptions.FieldNotEditableException;
+import de.volantic.erp.changeset.application.ChangeSetExceptions.FieldNotFilterableException;
 import de.volantic.erp.changeset.application.port.out.ChangeSetStore;
 import de.volantic.erp.changeset.domain.model.ChangeSet;
 import de.volantic.erp.changeset.domain.model.ChangeSetId;
@@ -263,6 +264,33 @@ class ChangeSetServiceTest {
         // revert can compensate it instead of writing null.
         assertThat(session.operations()).singleElement()
                 .satisfies(op -> assertThat(op.beforeState()).isEqualTo("BEFORE-AT-COMMIT"));
+    }
+
+    @Test
+    void filteredApplyResolvesTargetsThroughTheHandler() {
+        ChangeSet session = ChangeSet.open("alice", ChangeSetMode.LIVE);
+        given(session);
+        when(bulkHandler.filterableFields()).thenReturn(Set.of("name", "email"));
+        when(bulkHandler.selectIds(Map.of("email", "info@acme.de"))).thenReturn(List.of(id1, id2));
+
+        service.apply(session.id(), BulkChange.byFilter(TYPE, Map.of("email", "info@acme.de"), changes));
+
+        verify(bulkHandler).selectIds(Map.of("email", "info@acme.de"));
+        verify(bulkHandler).applyChange(eq(id1), eq(changes));
+        verify(bulkHandler).applyChange(eq(id2), eq(changes));
+    }
+
+    @Test
+    void filteredApplyRejectsANonFilterableField() {
+        ChangeSet session = ChangeSet.open("alice", ChangeSetMode.LIVE);
+        given(session);
+        when(bulkHandler.filterableFields()).thenReturn(Set.of("name"));
+
+        assertThatThrownBy(() -> service.apply(session.id(),
+                BulkChange.byFilter(TYPE, Map.of("city", "Hamburg"), changes)))
+                .isInstanceOf(FieldNotFilterableException.class);
+        verify(bulkHandler, never()).selectIds(any());
+        verify(bulkHandler, never()).applyChange(any(), any());
     }
 
     @Test

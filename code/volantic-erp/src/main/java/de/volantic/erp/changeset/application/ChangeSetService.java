@@ -7,6 +7,7 @@ import de.volantic.erp.audit.AuditTrail;
 import de.volantic.erp.changeset.application.ChangeSetExceptions.ChangeSetAccessDeniedException;
 import de.volantic.erp.changeset.application.ChangeSetExceptions.ChangeSetNotFoundException;
 import de.volantic.erp.changeset.application.ChangeSetExceptions.FieldNotEditableException;
+import de.volantic.erp.changeset.application.ChangeSetExceptions.FieldNotFilterableException;
 import de.volantic.erp.changeset.application.port.out.ChangeSetStore;
 import de.volantic.erp.changeset.domain.model.ChangeSet;
 import de.volantic.erp.changeset.domain.model.ChangeSetId;
@@ -29,6 +30,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Use cases behind mass edits, the Probemodus and the Rollback Engine (ADR-0006). Enforcement is at this
@@ -81,9 +83,10 @@ public class ChangeSetService {
         BulkEditHandler bulk = handlers.bulkFor(change.resourceType());
         ReversibleResourceHandler reversible = handlers.reversibleFor(change.resourceType());
         List<String> uneditable = uneditableFields(change, bulk);
+        List<UUID> targets = resolveTargets(change, bulk);
 
         List<BulkPreview.Row> rows = new ArrayList<>();
-        for (var id : change.ids()) {
+        for (var id : targets) {
             String before = reversible.capture(id);
             if (!uneditable.isEmpty()) {
                 rows.add(new BulkPreview.Row(id, false, before, "fields not editable: " + uneditable));
@@ -104,10 +107,11 @@ public class ChangeSetService {
         BulkEditHandler bulk = handlers.bulkFor(change.resourceType());
         ReversibleResourceHandler reversible = handlers.reversibleFor(change.resourceType());
         rejectUneditableFields(change, bulk);
+        List<UUID> targets = resolveTargets(change, bulk);
 
         String payload = serialize(change.fieldChanges());
         boolean deferred = changeSet.mode() == ChangeSetMode.DEFERRED;
-        for (var id : change.ids()) {
+        for (var id : targets) {
             EntityRef target = EntityRef.of(change.resourceType(), id);
             if (deferred) {
                 changeSet.record(new RecordedOperation(target, ChangeOperation.UPDATE, null, payload, now()));
@@ -202,6 +206,24 @@ public class ChangeSetService {
 
     private static OffsetDateTime now() {
         return OffsetDateTime.now(ZoneOffset.UTC);
+    }
+
+    /**
+     * Resolves the resources a change targets: the explicit id list, or — for a filtered mass edit — the
+     * ids the resource's handler matches for the given equality filter (ADR-0006 §5). Filter fields are
+     * validated against the handler's {@link BulkEditHandler#filterableFields()} first.
+     */
+    private static List<UUID> resolveTargets(BulkChange change, BulkEditHandler handler) {
+        if (!change.isFiltered()) {
+            return change.ids();
+        }
+        change.filter().keySet().stream()
+                .filter(field -> !handler.filterableFields().contains(field))
+                .findFirst()
+                .ifPresent(field -> {
+                    throw new FieldNotFilterableException(change.resourceType(), field);
+                });
+        return handler.selectIds(change.filter());
     }
 
     private static List<String> uneditableFields(BulkChange change, BulkEditHandler handler) {

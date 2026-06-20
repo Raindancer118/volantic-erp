@@ -3,6 +3,7 @@ package de.volantic.erp.changeset.api;
 import de.volantic.erp.changeset.application.ChangeSetExceptions.ChangeSetAccessDeniedException;
 import de.volantic.erp.changeset.application.ChangeSetExceptions.ChangeSetNotFoundException;
 import de.volantic.erp.changeset.application.ChangeSetExceptions.FieldNotEditableException;
+import de.volantic.erp.changeset.application.ChangeSetExceptions.FieldNotFilterableException;
 import de.volantic.erp.changeset.application.ChangeSetExceptions.UnknownResourceTypeException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -29,7 +30,8 @@ class ChangeSetExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, exception.getMessage());
     }
 
-    @ExceptionHandler({UnknownResourceTypeException.class, FieldNotEditableException.class})
+    @ExceptionHandler({UnknownResourceTypeException.class, FieldNotEditableException.class,
+            FieldNotFilterableException.class})
     ProblemDetail handleUnprocessable(RuntimeException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, exception.getMessage());
     }
