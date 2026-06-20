@@ -14,11 +14,11 @@ import org.springframework.stereotype.Component;
  * <p>Unknown subjects ({@code null}) are <strong>also cached</strong> on purpose: a validly signed but
  * not-yet-mirrored OIDC subject would otherwise hit the database on every request, which an attacker
  * holding any valid token could abuse to bypass the cache. Negative caching shields the database; the
- * short TTL in {@code CacheConfig} bounds staleness, and the write side evicts the entry once a user is
- * provisioned.
+ * short TTL in {@code CacheConfig} bounds staleness.
  *
- * <p>TODO: explicit eviction once a write side exists (role/assignment changes). Until then the TTL in
- * {@code CacheConfig} bounds staleness.
+ * <p>Eviction: the security write side ({@code SecurityWriteStoreAdapter}) evicts a subject's entry
+ * after commit on every authorization-relevant change (provisioning, status, role definition/assignment),
+ * fail-open if the cache is unreachable; the short TTL bounds any residual staleness.
  */
 @Component
 class UserGraphCache {
