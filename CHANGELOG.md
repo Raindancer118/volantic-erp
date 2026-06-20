@@ -4,6 +4,10 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-21 `feat(crm,catalog)` (fe0acf9) — bulk create/delete für Customer, Supplier, Product (ADR-0006 §2 vollständig abgedeckt)
+  - Lücke geschlossen: LifecycleResourceHandler war nur für Contact/Address; jetzt alle 5 Stammdaten-Aggregate
+  - repository deleteById, service delete*/recreate* (neue :delete-Permission; recreate behält Original-id+Geschäftsschlüssel), je ein LifecycleResourceHandler
+  - per-Handler Unit-Tests + end-to-end IT (Customer bulk-create→revert löscht, bulk-delete→revert legt mit gleicher id+Nummer neu an), ChangeSetFlowIT 11/11 
 - 2026-06-21 `feat(changeset,sales)` (cfaea71) — bulk-post documents reversible by storno (ADR-0006 §2 — Beleg-Pfad geschlossen)
   - neue SPI DocumentPostingHandler (post/storno) + ChangeOperation.POST → Kompensation via Storno (kein Delete)
   - ChangeSetService.postDocuments LIVE-only, revert→storno
