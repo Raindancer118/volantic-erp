@@ -9,6 +9,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 /** Supplier use cases. Authorization is enforced here at the service boundary (ADR-0004). */
 @Service
 public class SupplierService {
@@ -28,7 +30,8 @@ public class SupplierService {
         return suppliers.save(Supplier.create(supplierNumber, name, email));
     }
 
-    @Transactional(readOnly = true)
+    // noRollbackFor: a not-found read must not poison a surrounding transaction (see CustomerService).
+    @Transactional(readOnly = true, noRollbackFor = SupplierNotFoundException.class)
     @PreAuthorize("hasPermission(null, 'crm.supplier:read')")
     public Supplier getSupplier(SupplierId id) {
         return suppliers.findById(id).orElseThrow(() -> new SupplierNotFoundException(id));
@@ -38,6 +41,13 @@ public class SupplierService {
     @PreAuthorize("hasPermission(null, 'crm.supplier:read')")
     public Page<Supplier> listSuppliers(Pageable pageable) {
         return suppliers.findAll(pageable);
+    }
+
+    /** Resolves a selection filter (name and/or email, exact match) to the matching supplier ids. */
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasPermission(null, 'crm.supplier:read')")
+    public List<SupplierId> findSupplierIds(String name, String email) {
+        return suppliers.findIds(name, email);
     }
 
     @Transactional

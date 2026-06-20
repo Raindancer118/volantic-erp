@@ -10,6 +10,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 /** Product use cases. Authorization enforced at the service boundary (ADR-0004). */
 @Service
 public class ProductService {
@@ -29,7 +31,9 @@ public class ProductService {
         return products.save(Product.create(sku, name, listPrice));
     }
 
-    @Transactional(readOnly = true)
+    // noRollbackFor: a not-found read must not poison a surrounding transaction (see CustomerService) —
+    // the change-set ProductBulkHandler probes existence inside a wider tx via getProduct.
+    @Transactional(readOnly = true, noRollbackFor = CatalogExceptions.NotFound.class)
     @PreAuthorize("hasPermission(null, 'catalog.product:read')")
     public Product getProduct(ProductId id) {
         return products.findById(id).orElseThrow(() -> new CatalogExceptions.ProductNotFound(id));
@@ -39,6 +43,13 @@ public class ProductService {
     @PreAuthorize("hasPermission(null, 'catalog.product:read')")
     public Page<Product> listProducts(Pageable pageable) {
         return products.findAll(pageable);
+    }
+
+    /** Resolves a selection filter (name and/or ISO currency code, exact match) to matching product ids. */
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasPermission(null, 'catalog.product:read')")
+    public List<ProductId> findProductIds(String name, String currencyCode) {
+        return products.findIds(name, currencyCode);
     }
 
     @Transactional

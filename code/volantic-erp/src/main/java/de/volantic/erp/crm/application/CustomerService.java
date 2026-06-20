@@ -9,6 +9,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 /**
  * Customer use cases. Enforcement happens here at the service boundary (ADR-0004) via
  * {@code @PreAuthorize("hasPermission(...)")}, which routes through the central
@@ -32,7 +34,10 @@ public class CustomerService {
         return customers.save(Customer.create(customerNumber, name, email));
     }
 
-    @Transactional(readOnly = true)
+    // noRollbackFor: a not-found lookup must not mark a surrounding transaction rollback-only — the
+    // change-set handlers call this inside a wider tx to probe existence (capture() returns null when
+    // absent), and a missing resource there is an expected, non-fatal outcome, not a write failure.
+    @Transactional(readOnly = true, noRollbackFor = CustomerNotFoundException.class)
     @PreAuthorize("hasPermission(null, 'crm.customer:read')")
     public Customer getCustomer(CustomerId id) {
         return customers.findById(id).orElseThrow(() -> new CustomerNotFoundException(id));
@@ -42,6 +47,13 @@ public class CustomerService {
     @PreAuthorize("hasPermission(null, 'crm.customer:read')")
     public Page<Customer> listCustomers(Pageable pageable) {
         return customers.findAll(pageable);
+    }
+
+    /** Resolves a selection filter (name and/or email, exact match) to the matching customer ids. */
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasPermission(null, 'crm.customer:read')")
+    public List<CustomerId> findCustomerIds(String name, String email) {
+        return customers.findIds(name, email);
     }
 
     @Transactional

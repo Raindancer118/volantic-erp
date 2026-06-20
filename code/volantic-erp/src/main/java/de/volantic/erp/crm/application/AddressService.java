@@ -14,6 +14,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 /** Address use cases. Authorization enforced here at the service boundary (ADR-0004). */
 @Service
 public class AddressService {
@@ -35,7 +37,8 @@ public class AddressService {
         return address;
     }
 
-    @Transactional(readOnly = true)
+    // noRollbackFor: a not-found read must not poison a surrounding transaction (see CustomerService).
+    @Transactional(readOnly = true, noRollbackFor = AddressNotFoundException.class)
     @PreAuthorize("hasPermission(null, 'crm.address:read')")
     public Address getAddress(AddressId id) {
         return addresses.findById(id).orElseThrow(() -> new AddressNotFoundException(id));
@@ -45,6 +48,13 @@ public class AddressService {
     @PreAuthorize("hasPermission(null, 'crm.address:read')")
     public Page<Address> listAddresses(PartnerRef owner, Pageable pageable) {
         return addresses.findByOwner(owner, pageable);
+    }
+
+    /** Resolves a selection filter (type/city/postalCode/countryCode, exact match) to matching ids. */
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasPermission(null, 'crm.address:read')")
+    public List<AddressId> findAddressIds(AddressType type, String city, String postalCode, String countryCode) {
+        return addresses.findIds(type, city, postalCode, countryCode);
     }
 
     @Transactional

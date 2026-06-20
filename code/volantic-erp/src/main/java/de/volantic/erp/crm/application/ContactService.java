@@ -13,6 +13,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 /** Contact use cases. Authorization enforced here at the service boundary (ADR-0004). */
 @Service
 public class ContactService {
@@ -33,7 +35,8 @@ public class ContactService {
         return contact;
     }
 
-    @Transactional(readOnly = true)
+    // noRollbackFor: a not-found read must not poison a surrounding transaction (see CustomerService).
+    @Transactional(readOnly = true, noRollbackFor = ContactNotFoundException.class)
     @PreAuthorize("hasPermission(null, 'crm.contact:read')")
     public Contact getContact(ContactId id) {
         return contacts.findById(id).orElseThrow(() -> new ContactNotFoundException(id));
@@ -43,6 +46,13 @@ public class ContactService {
     @PreAuthorize("hasPermission(null, 'crm.contact:read')")
     public Page<Contact> listContacts(PartnerRef owner, Pageable pageable) {
         return contacts.findByOwner(owner, pageable);
+    }
+
+    /** Resolves a selection filter (first/last name and/or email, exact match) to matching contact ids. */
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasPermission(null, 'crm.contact:read')")
+    public List<ContactId> findContactIds(String firstName, String lastName, String email) {
+        return contacts.findIds(firstName, lastName, email);
     }
 
     @Transactional
