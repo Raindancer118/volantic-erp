@@ -6,6 +6,9 @@ public enum ChangeSetStatus {
     /** Recording operations; the only state in which new operations may be added. */
     OPEN,
 
+    /** A Probemodus session submitted for four-eyes approval; committed only once approved (ADR-0006 §7). */
+    AWAITING_APPROVAL,
+
     /** Operations are in effect — a LIVE session that was closed, or a Probemodus session "übertragen". */
     COMMITTED,
 
@@ -16,6 +19,6 @@ public enum ChangeSetStatus {
     DISCARDED;
 
     public boolean isTerminal() {
-        return this != OPEN;
+        return this == COMMITTED || this == REVERTED || this == DISCARDED;
     }
 }

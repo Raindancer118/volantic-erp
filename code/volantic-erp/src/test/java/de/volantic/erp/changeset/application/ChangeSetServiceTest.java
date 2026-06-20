@@ -60,6 +60,7 @@ class ChangeSetServiceTest {
     private final ReversibleResourceHandler revHandler = mock(ReversibleResourceHandler.class);
     private final LifecycleResourceHandler lifecycleHandler = mock(LifecycleResourceHandler.class);
     private final AuditTrail audit = mock(AuditTrail.class);
+    private final de.volantic.erp.workflow.Approvals approvals = mock(de.volantic.erp.workflow.Approvals.class);
     private final ObjectMapper json = new ObjectMapper();
 
     private final UUID id1 = UUID.randomUUID();
@@ -76,7 +77,7 @@ class ChangeSetServiceTest {
         when(lifecycleHandler.resourceType()).thenReturn(TYPE);
         ResourceHandlers handlers = new ResourceHandlers(
                 List.of(bulkHandler), List.of(revHandler), List.of(lifecycleHandler));
-        service = new ChangeSetService(store, handlers, audit, json);
+        service = new ChangeSetService(store, handlers, audit, json, approvals);
         // The sessions under test are opened by "alice"; authenticate as her so the ownership check passes.
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken("alice", null, AuthorityUtils.NO_AUTHORITIES));
@@ -353,6 +354,66 @@ class ChangeSetServiceTest {
 
         verify(lifecycleHandler).delete(id1);            // CREATE → delete
         verify(lifecycleHandler).recreate(id2, "SNAP");  // DELETE → re-create from snapshot
+    }
+
+    @Test
+    void requestApprovalSubmitsTheSessionAndStartsAWorkflow() {
+        ChangeSet session = ChangeSet.open("alice", ChangeSetMode.DEFERRED);
+        given(session);
+        when(approvals.requestApproval("changeset.session", session.id().value().toString(), "alice"))
+                .thenReturn("APPROVAL-1");
+
+        String instanceId = service.requestApproval(session.id());
+
+        assertThat(instanceId).isEqualTo("APPROVAL-1");
+        assertThat(session.status()).isEqualTo(ChangeSetStatus.AWAITING_APPROVAL);
+    }
+
+    @Test
+    void requestApprovalIsRejectedForALiveSession() {
+        ChangeSet session = ChangeSet.open("alice", ChangeSetMode.LIVE);
+        given(session);
+
+        assertThatThrownBy(() -> service.requestApproval(session.id())).isInstanceOf(IllegalStateException.class);
+        verify(approvals, never()).requestApproval(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void approvedOutcomeAppliesBufferedOperationsAndCommits() {
+        ChangeSet session = ChangeSet.open("alice", ChangeSetMode.DEFERRED);
+        given(session);
+        service.apply(session.id(), change(changes, id1)); // buffer one op (nothing written yet)
+        session.submitForApproval();
+        when(revHandler.capture(id1)).thenReturn("BEFORE");
+
+        service.applyApprovalOutcome(session.id(), true);
+
+        verify(bulkHandler).applyChange(eq(id1), eq(changes));
+        assertThat(session.status()).isEqualTo(ChangeSetStatus.COMMITTED);
+    }
+
+    @Test
+    void rejectedOutcomeDiscardsWithoutApplying() {
+        ChangeSet session = ChangeSet.open("alice", ChangeSetMode.DEFERRED);
+        given(session);
+        service.apply(session.id(), change(changes, id1));
+        session.submitForApproval();
+
+        service.applyApprovalOutcome(session.id(), false);
+
+        verify(bulkHandler, never()).applyChange(any(), any());
+        assertThat(session.status()).isEqualTo(ChangeSetStatus.DISCARDED);
+    }
+
+    @Test
+    void approvalOutcomeIsIgnoredWhenSessionIsNotAwaitingApproval() {
+        ChangeSet session = ChangeSet.open("alice", ChangeSetMode.LIVE);
+        given(session);
+
+        service.applyApprovalOutcome(session.id(), true);
+
+        assertThat(session.status()).isEqualTo(ChangeSetStatus.OPEN);
+        verify(bulkHandler, never()).applyChange(any(), any());
     }
 
     @Test

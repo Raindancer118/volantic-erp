@@ -61,7 +61,7 @@ public final class ChangeSet {
      * committed Probemodus session later. Only allowed while {@code OPEN} and the order/size must match.
      */
     public void replaceWithCaptured(List<RecordedOperation> capturedInOrder) {
-        if (status != ChangeSetStatus.OPEN) {
+        if (status != ChangeSetStatus.OPEN && status != ChangeSetStatus.AWAITING_APPROVAL) {
             throw new IllegalStateException("cannot capture before-states into a " + status + " change set");
         }
         if (capturedInOrder.size() != operations.size()) {
@@ -105,12 +105,51 @@ public final class ChangeSet {
         this.closedAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
 
-    /** Throws away a Probemodus session before commit. Only valid for a DEFERRED, still-open session. */
+    /**
+     * Throws away a Probemodus session before commit. Valid for a DEFERRED session that is still open or
+     * awaiting approval (so a session can be withdrawn after it was submitted for sign-off).
+     */
     public void discard() {
         if (mode != ChangeSetMode.DEFERRED) {
             throw new IllegalStateException("only a Probemodus (DEFERRED) session can be discarded");
         }
-        transitionFromOpen(ChangeSetStatus.DISCARDED);
+        if (status != ChangeSetStatus.OPEN && status != ChangeSetStatus.AWAITING_APPROVAL) {
+            throw new IllegalStateException("change set is already " + status);
+        }
+        this.status = ChangeSetStatus.DISCARDED;
+        this.closedAt = OffsetDateTime.now(ZoneOffset.UTC);
+    }
+
+    /**
+     * Submits a Probemodus session for four-eyes approval (ADR-0006 §7): no more operations may be added,
+     * and it can only be applied once a reviewer approves it.
+     */
+    public void submitForApproval() {
+        if (mode != ChangeSetMode.DEFERRED) {
+            throw new IllegalStateException("only a Probemodus (DEFERRED) session can require approval");
+        }
+        if (status != ChangeSetStatus.OPEN) {
+            throw new IllegalStateException("only an open session can be submitted for approval, not " + status);
+        }
+        this.status = ChangeSetStatus.AWAITING_APPROVAL;
+    }
+
+    /** Marks a session committed after approval (the service applies its buffered operations first). */
+    public void approve() {
+        if (status != ChangeSetStatus.AWAITING_APPROVAL) {
+            throw new IllegalStateException("only a session awaiting approval can be approved, not " + status);
+        }
+        this.status = ChangeSetStatus.COMMITTED;
+        this.closedAt = OffsetDateTime.now(ZoneOffset.UTC);
+    }
+
+    /** Discards a session after its approval was rejected — nothing is applied. */
+    public void rejectApproval() {
+        if (status != ChangeSetStatus.AWAITING_APPROVAL) {
+            throw new IllegalStateException("only a session awaiting approval can be rejected, not " + status);
+        }
+        this.status = ChangeSetStatus.DISCARDED;
+        this.closedAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
 
     /** The recorded operations in the order they must be compensated: newest first. */

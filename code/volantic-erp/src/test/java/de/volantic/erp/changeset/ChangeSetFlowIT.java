@@ -17,6 +17,9 @@ import de.volantic.erp.crm.domain.model.PartnerRef;
 import de.volantic.erp.crm.domain.model.PartnerType;
 import de.volantic.erp.security.AccessScope;
 import de.volantic.erp.security.SecurityAdmin;
+import de.volantic.erp.workflow.application.ApprovalService;
+import de.volantic.erp.workflow.domain.model.ApprovalDecision;
+import de.volantic.erp.workflow.domain.model.PendingApproval;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,6 +33,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -37,6 +41,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 /**
  * End-to-end integration test of the whole change-set machinery (ADR-0006) against a real PostgreSQL
@@ -59,6 +64,7 @@ class ChangeSetFlowIT {
 
     private static final String TYPE = "crm.customer";
     private static final String ACTOR = "changeset-tester";
+    private static final String REVIEWER = "approval-reviewer-bob";
 
     @Container
     @ServiceConnection
@@ -78,26 +84,42 @@ class ChangeSetFlowIT {
     @Autowired
     private ContactService contacts;
 
+    @Autowired
+    private ApprovalService approvals;
+
     @BeforeEach
     void seedRbacAndAuthenticate() {
         if (!rbacSeeded) {
-            Set<String> permissions = Set.of(
+            Set<String> requesterPermissions = Set.of(
                     "changeset.bulk:execute", "changeset.probemodus:activate", "changeset.rollback:revert",
                     "crm.customer:create", "crm.customer:read", "crm.customer:update",
-                    "crm.contact:read", "crm.contact:write");
-            permissions.forEach(key -> securityAdmin.definePermission(key, key));
-            securityAdmin.defineRole("changeset-admin", "Change-set admin", permissions);
+                    "crm.contact:read", "crm.contact:write",
+                    "workflow.approval:start", "workflow.approval:read");
+            // The reviewer can only decide approvals — deliberately NOT crm.customer:update, so the apply
+            // can only succeed if it runs as the requester (proves the listener impersonates correctly).
+            Set<String> reviewerPermissions = Set.of("workflow.approval:read", "workflow.approval:decide");
+
+            java.util.stream.Stream.concat(requesterPermissions.stream(), reviewerPermissions.stream())
+                    .distinct().forEach(key -> securityAdmin.definePermission(key, key));
+            securityAdmin.defineRole("changeset-admin", "Change-set admin", requesterPermissions);
+            securityAdmin.defineRole("approval-reviewer", "Approval reviewer", reviewerPermissions);
             securityAdmin.provisionUser(ACTOR, "tester", "tester@volantic.de");
+            securityAdmin.provisionUser(REVIEWER, "reviewer", "reviewer@volantic.de");
             securityAdmin.assignRole(ACTOR, "changeset-admin", AccessScope.GLOBAL);
+            securityAdmin.assignRole(REVIEWER, "approval-reviewer", AccessScope.GLOBAL);
             rbacSeeded = true;
         }
-        SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(ACTOR, "n/a", AuthorityUtils.NO_AUTHORITIES));
+        authenticateAs(ACTOR);
     }
 
     @AfterEach
     void clearAuthentication() {
         SecurityContextHolder.clearContext();
+    }
+
+    private static void authenticateAs(String oidcSubject) {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(oidcSubject, "n/a", AuthorityUtils.NO_AUTHORITIES));
     }
 
     private CustomerId newCustomer(String number, String name) {
@@ -222,6 +244,54 @@ class ChangeSetFlowIT {
     private static Map<String, String> contactRecord(Map<String, String> ownerRef, String first, String last) {
         return Map.of("ownerType", ownerRef.get("ownerType"), "ownerId", ownerRef.get("ownerId"),
                 "firstName", first, "lastName", last, "email", "", "phone", "");
+    }
+
+    @Test
+    void probemodusViaFourEyesApprovalAppliesOnlyAfterAReviewerApproves() {
+        CustomerId id = newCustomer("C-APPROVE-1", "PendingCo");
+
+        ChangeSetId session = changeSets.beginProbemodus();
+        changeSets.apply(session, new BulkChange(TYPE, List.of(id.value()), Map.of("name", "ApprovedCo")));
+        assertThat(nameOf(id)).isEqualTo("PendingCo"); // buffered — nothing written yet
+
+        String approvalInstance = changeSets.requestApproval(session);
+        assertThat(nameOf(id)).isEqualTo("PendingCo"); // still not applied — awaiting sign-off
+
+        decideAsReviewer(approvalInstance, ApprovalDecision.APPROVED);
+
+        // The approval triggers the async listener, which applies the buffered change AS the requester
+        // (the reviewer has no crm.customer:update) — so success proves the impersonation works.
+        await().pollInSameThread().atMost(Duration.ofSeconds(20)).untilAsserted(() ->
+                assertThat(nameOf(id)).isEqualTo("ApprovedCo"));
+    }
+
+    @Test
+    void rejectedApprovalDiscardsTheSessionWithoutApplying() {
+        CustomerId id = newCustomer("C-APPROVE-2", "KeepCo");
+
+        ChangeSetId session = changeSets.beginProbemodus();
+        changeSets.apply(session, new BulkChange(TYPE, List.of(id.value()), Map.of("name", "Nope")));
+        String approvalInstance = changeSets.requestApproval(session);
+
+        decideAsReviewer(approvalInstance, ApprovalDecision.REJECTED);
+
+        await().pollInSameThread().atMost(Duration.ofSeconds(20)).untilAsserted(() ->
+                assertThat(changeSets.getSession(session).status().name()).isEqualTo("DISCARDED"));
+        assertThat(nameOf(id)).isEqualTo("KeepCo"); // never applied
+    }
+
+    /** Switches to the reviewer, decides the approval's pending task, then switches back to the requester. */
+    private void decideAsReviewer(String approvalInstanceId, ApprovalDecision decision) {
+        authenticateAs(REVIEWER);
+        try {
+            PendingApproval task = approvals.pendingApprovals().stream()
+                    .filter(t -> t.instanceId().equals(approvalInstanceId))
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("no pending task for " + approvalInstanceId));
+            approvals.decide(task.taskId(), decision, REVIEWER);
+        } finally {
+            authenticateAs(ACTOR);
+        }
     }
 
     @Test

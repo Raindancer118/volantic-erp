@@ -83,6 +83,11 @@ class ChangeSetController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/sessions/{id}/request-approval")
+    ApprovalRequestedResponse requestApproval(@PathVariable UUID id) {
+        return new ApprovalRequestedResponse(changeSets.requestApproval(new ChangeSetId(id)));
+    }
+
     @PostMapping("/sessions/{id}/discard")
     ResponseEntity<Void> discard(@PathVariable UUID id) {
         changeSets.discard(new ChangeSetId(id));

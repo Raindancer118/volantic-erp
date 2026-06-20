@@ -12,7 +12,9 @@ import de.volantic.erp.changeset.application.port.out.ChangeSetStore;
 import de.volantic.erp.changeset.domain.model.ChangeSet;
 import de.volantic.erp.changeset.domain.model.ChangeSetId;
 import de.volantic.erp.changeset.domain.model.ChangeSetMode;
+import de.volantic.erp.changeset.domain.model.ChangeSetStatus;
 import de.volantic.erp.changeset.domain.model.RecordedOperation;
+import de.volantic.erp.workflow.Approvals;
 import de.volantic.erp.core.entitylink.EntityRef;
 import de.volantic.erp.core.revision.BulkEditHandler;
 import de.volantic.erp.core.revision.ChangeOperation;
@@ -45,16 +47,22 @@ public class ChangeSetService {
     private static final TypeReference<Map<String, String>> FIELD_MAP = new TypeReference<>() {
     };
 
+    /** Subject type used for the four-eyes approval of a change-set session (ADR-0006 §7). */
+    public static final String APPROVAL_SUBJECT_TYPE = "changeset.session";
+
     private final ChangeSetStore store;
     private final ResourceHandlers handlers;
     private final AuditTrail audit;
     private final ObjectMapper json;
+    private final Approvals approvals;
 
-    ChangeSetService(ChangeSetStore store, ResourceHandlers handlers, AuditTrail audit, ObjectMapper json) {
+    ChangeSetService(ChangeSetStore store, ResourceHandlers handlers, AuditTrail audit,
+                     ObjectMapper json, Approvals approvals) {
         this.store = store;
         this.handlers = handlers;
         this.audit = audit;
         this.json = json;
+        this.approvals = approvals;
     }
 
     /** Starts a LIVE session: changes take effect immediately and can be taken back via {@link #revert}. */
@@ -183,22 +191,71 @@ public class ChangeSetService {
     public void commit(ChangeSetId session) {
         ChangeSet changeSet = loadOwned(session);
         if (changeSet.mode() == ChangeSetMode.DEFERRED) {
-            // Capture the before-state as each buffered change is applied. It was null while the operation
-            // sat buffered (nothing written yet); capturing it now lets a later revert() compensate this
-            // committed Probemodus session instead of writing null into the database.
-            List<RecordedOperation> captured = new ArrayList<>();
-            for (RecordedOperation op : changeSet.operations()) {
-                BulkEditHandler bulk = handlers.bulkFor(op.target().type());
-                ReversibleResourceHandler reversible = handlers.reversibleFor(op.target().type());
-                String before = reversible.capture(op.target().id());
-                bulk.applyChange(op.target().id(), deserialize(op.payload()));
-                audit.record("changeset.committed", op.target().type(), op.target().id(), op.payload());
-                captured.add(op.withBeforeState(before));
-            }
-            changeSet.replaceWithCaptured(captured);
+            applyBufferedOperations(changeSet);
         }
         changeSet.commit();
         store.save(changeSet);
+    }
+
+    /**
+     * Submits a Probemodus session for four-eyes approval (ADR-0006 §7): it can no longer be committed
+     * directly — a reviewer must approve it, which then applies it automatically (see
+     * {@link #applyApprovalOutcome}). Returns the workflow approval instance id. The approval is started
+     * before the session is moved to {@code AWAITING_APPROVAL} so that a failure leaves the session open.
+     */
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'changeset.bulk:execute')")
+    public String requestApproval(ChangeSetId session) {
+        ChangeSet changeSet = loadOwned(session);
+        if (changeSet.mode() != ChangeSetMode.DEFERRED || changeSet.status() != ChangeSetStatus.OPEN) {
+            throw new IllegalStateException("only an open Probemodus session can be submitted for approval");
+        }
+        String instanceId = approvals.requestApproval(
+                APPROVAL_SUBJECT_TYPE, session.value().toString(), currentActor());
+        changeSet.submitForApproval();
+        store.save(changeSet);
+        return instanceId;
+    }
+
+    /**
+     * Applies a reviewer's decision to a session awaiting approval (ADR-0006 §7): approve → its buffered
+     * operations are applied and it is committed; reject → it is discarded. Triggered by the workflow
+     * {@code ApprovalDecided} event, running as the original requester (see {@code ChangeSetApprovalListener}),
+     * so authorization and ownership resolve against that actor. Idempotent: a session that is no longer
+     * awaiting approval is left untouched.
+     */
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'changeset.bulk:execute')")
+    public void applyApprovalOutcome(ChangeSetId session, boolean approved) {
+        ChangeSet changeSet = loadOwned(session);
+        if (changeSet.status() != ChangeSetStatus.AWAITING_APPROVAL) {
+            return;
+        }
+        if (approved) {
+            applyBufferedOperations(changeSet);
+            changeSet.approve();
+        } else {
+            changeSet.rejectApproval();
+        }
+        store.save(changeSet);
+    }
+
+    /**
+     * Applies a Probemodus session's buffered operations, capturing each resource's before-state as the
+     * change is written (it was null while buffered). The enriched operations let the Rollback Engine
+     * compensate the now-committed session later.
+     */
+    private void applyBufferedOperations(ChangeSet changeSet) {
+        List<RecordedOperation> captured = new ArrayList<>();
+        for (RecordedOperation op : changeSet.operations()) {
+            BulkEditHandler bulk = handlers.bulkFor(op.target().type());
+            ReversibleResourceHandler reversible = handlers.reversibleFor(op.target().type());
+            String before = reversible.capture(op.target().id());
+            bulk.applyChange(op.target().id(), deserialize(op.payload()));
+            audit.record("changeset.committed", op.target().type(), op.target().id(), op.payload());
+            captured.add(op.withBeforeState(before));
+        }
+        changeSet.replaceWithCaptured(captured);
     }
 
     /** Throws away a Probemodus session before commit — nothing was applied. */
