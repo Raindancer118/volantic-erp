@@ -4,6 +4,10 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-20 `feat(changeset)` (7917d37) — REST v1 API for sessions + bulk preview/apply (M4)
+  - /v1/changeset: open LIVE/Probemodus session, dry-run preview, apply within session, commit/discard/revert
+  - ChangeSetExceptionHandler → RFC 7807 (404/403/422/409/400)
+  - test-first @WebMvcTest contract pins status codes, Location header and JSON shapes 
 - 2026-06-19 `fix(hardening)` (dbbcd7f) — remediate audit findings (Findings.md)
   - audit hash length-prefixed against delimiter injection; ChangeSet ownership check (IDOR); ThreadLocal SecureRandom; UTC timestamps; Modulith outbox cleanup+republish; JWT aud validation; paged verifyIntegrity (OOM); circular-BOM detection; capture-at-commit revertable Probemodus; scale-insensitive Quantity equality; ISO country + stricter email; aggregate equals/hashCode 
 - 2026-06-19 `feat(changeset)` (3942bee) — application service + session persistence (M2)
