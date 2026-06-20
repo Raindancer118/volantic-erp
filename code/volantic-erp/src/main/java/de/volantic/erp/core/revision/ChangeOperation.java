@@ -14,5 +14,11 @@ public enum ChangeOperation {
     UPDATE,
 
     /** A resource was deleted — its compensation re-creates it from the captured before-state. */
-    DELETE
+    DELETE,
+
+    /**
+     * A document (Beleg) was posted — its compensation is a forward-only storno (a cancellation document
+     * in the same number range), never a delete or restore, so the GoBD number/audit chain stays intact.
+     */
+    POST
 }

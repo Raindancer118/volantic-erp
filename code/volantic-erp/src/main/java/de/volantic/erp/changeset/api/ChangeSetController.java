@@ -77,6 +77,12 @@ class ChangeSetController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/sessions/{id}/bulk-post")
+    ResponseEntity<Void> bulkPost(@PathVariable UUID id, @Valid @RequestBody BulkPostDocumentsRequest request) {
+        changeSets.postDocuments(new ChangeSetId(id), request.toCommand());
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/sessions/{id}/commit")
     ResponseEntity<Void> commit(@PathVariable UUID id) {
         changeSets.commit(new ChangeSetId(id));

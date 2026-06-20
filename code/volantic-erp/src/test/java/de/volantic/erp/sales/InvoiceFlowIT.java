@@ -54,10 +54,14 @@ class InvoiceFlowIT {
     @Autowired
     private InvoiceService invoices;
 
+    @Autowired
+    private de.volantic.erp.changeset.application.ChangeSetService changeSets;
+
     @BeforeEach
     void seedAndAuthenticate() {
         if (!seeded) {
-            Set<String> permissions = Set.of("sales.invoice:read", "sales.invoice:write", "sales.invoice:post");
+            Set<String> permissions = Set.of("sales.invoice:read", "sales.invoice:write", "sales.invoice:post",
+                    "changeset.bulk:execute", "changeset.rollback:revert");
             permissions.forEach(key -> securityAdmin.definePermission(key, key));
             securityAdmin.defineRole("sales-clerk-role", "Sales clerk", permissions);
             securityAdmin.provisionUser(ACTOR, "clerk", "clerk@volantic.de");
@@ -123,5 +127,28 @@ class InvoiceFlowIT {
         assertThat(reloadedOriginal.status()).isEqualTo(InvoiceStatus.CANCELLED);
         assertThat(reloadedOriginal.cancelledBy()).isEqualTo(storno.id());
         assertThat(reloadedOriginal.total()).isEqualTo(Money.of("100.00", "EUR")); // unchanged
+    }
+
+    @Test
+    void bulkPostingInvoicesViaAChangeSetIsReversibleByStorno() {
+        // Mass-fakturierung: two drafts posted in one reversible LIVE session (ADR-0006 §2).
+        InvoiceId a = newDraft("Order A", "1", "30.00");
+        InvoiceId b = newDraft("Order B", "1", "40.00");
+
+        var session = changeSets.beginLive();
+        changeSets.postDocuments(session, new de.volantic.erp.changeset.application.BulkPostDocuments(
+                "sales.invoice", List.of(a.value(), b.value())));
+
+        assertThat(invoices.getInvoice(a).status()).isEqualTo(InvoiceStatus.POSTED);
+        assertThat(invoices.getInvoice(b).status()).isEqualTo(InvoiceStatus.POSTED);
+
+        // The Rollback Engine takes the whole batch back via storno — both originals end up CANCELLED,
+        // each referencing its own storno, and neither is deleted (forward-only, GoBD-safe).
+        changeSets.revert(session);
+
+        assertThat(invoices.getInvoice(a).status()).isEqualTo(InvoiceStatus.CANCELLED);
+        assertThat(invoices.getInvoice(a).cancelledBy()).isNotNull();
+        assertThat(invoices.getInvoice(b).status()).isEqualTo(InvoiceStatus.CANCELLED);
+        assertThat(invoices.getInvoice(b).cancelledBy()).isNotNull();
     }
 }

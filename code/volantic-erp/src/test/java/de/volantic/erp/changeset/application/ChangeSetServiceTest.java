@@ -59,6 +59,8 @@ class ChangeSetServiceTest {
     private final BulkEditHandler bulkHandler = mock(BulkEditHandler.class);
     private final ReversibleResourceHandler revHandler = mock(ReversibleResourceHandler.class);
     private final LifecycleResourceHandler lifecycleHandler = mock(LifecycleResourceHandler.class);
+    private final de.volantic.erp.core.revision.DocumentPostingHandler postingHandler =
+            mock(de.volantic.erp.core.revision.DocumentPostingHandler.class);
     private final AuditTrail audit = mock(AuditTrail.class);
     private final de.volantic.erp.workflow.Approvals approvals = mock(de.volantic.erp.workflow.Approvals.class);
     private final ObjectMapper json = new ObjectMapper();
@@ -75,8 +77,9 @@ class ChangeSetServiceTest {
         when(bulkHandler.editableFields()).thenReturn(Set.of("name", "email"));
         when(revHandler.resourceType()).thenReturn(TYPE);
         when(lifecycleHandler.resourceType()).thenReturn(TYPE);
+        when(postingHandler.resourceType()).thenReturn(TYPE);
         ResourceHandlers handlers = new ResourceHandlers(
-                List.of(bulkHandler), List.of(revHandler), List.of(lifecycleHandler));
+                List.of(bulkHandler), List.of(revHandler), List.of(lifecycleHandler), List.of(postingHandler));
         service = new ChangeSetService(store, handlers, audit, json, approvals);
         // The sessions under test are opened by "alice"; authenticate as her so the ownership check passes.
         SecurityContextHolder.getContext().setAuthentication(
@@ -339,6 +342,41 @@ class ChangeSetServiceTest {
             assertThat(op.operation()).isEqualTo(ChangeOperation.DELETE);
             assertThat(op.beforeState()).isEqualTo("SNAP-1");
         });
+    }
+
+    @Test
+    void postDocumentsPostsEachDraftAndRecordsPostOperations() {
+        ChangeSet session = ChangeSet.open("alice", ChangeSetMode.LIVE);
+        given(session);
+
+        service.postDocuments(session.id(), new BulkPostDocuments(TYPE, List.of(id1, id2)));
+
+        verify(postingHandler).post(id1);
+        verify(postingHandler).post(id2);
+        assertThat(session.operations()).extracting(RecordedOperation::operation)
+                .containsOnly(ChangeOperation.POST);
+    }
+
+    @Test
+    void postDocumentsIsRejectedInProbemodus() {
+        ChangeSet session = ChangeSet.open("alice", ChangeSetMode.DEFERRED);
+        given(session);
+
+        assertThatThrownBy(() -> service.postDocuments(session.id(), new BulkPostDocuments(TYPE, List.of(id1))))
+                .isInstanceOf(IllegalStateException.class);
+        verify(postingHandler, never()).post(any());
+    }
+
+    @Test
+    void revertCompensatesPostByStorno() {
+        ChangeSet session = ChangeSet.open("alice", ChangeSetMode.LIVE);
+        session.record(new RecordedOperation(
+                EntityRef.of(TYPE, id1), ChangeOperation.POST, null, null, OffsetDateTime.now()));
+        given(session);
+
+        service.revert(session.id());
+
+        verify(postingHandler).storno(id1); // POST → storno (forward-only, no delete)
     }
 
     @Test

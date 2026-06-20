@@ -18,6 +18,7 @@ import de.volantic.erp.workflow.Approvals;
 import de.volantic.erp.core.entitylink.EntityRef;
 import de.volantic.erp.core.revision.BulkEditHandler;
 import de.volantic.erp.core.revision.ChangeOperation;
+import de.volantic.erp.core.revision.DocumentPostingHandler;
 import de.volantic.erp.core.revision.LifecycleResourceHandler;
 import de.volantic.erp.core.revision.ReversibleResourceHandler;
 import org.springframework.data.domain.Page;
@@ -185,6 +186,28 @@ public class ChangeSetService {
         store.save(changeSet);
     }
 
+    /**
+     * Mass-posts existing draft documents (Belege) within a LIVE session (ADR-0006 §2): each is posted
+     * through the module's domain service (drawing its gap-free GoBD number) and recorded as a POST
+     * operation, so the Rollback Engine can take the whole batch back with stornos. Not available in
+     * Probemodus (posting draws real numbers and cannot be buffered).
+     */
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'changeset.bulk:execute')")
+    public void postDocuments(ChangeSetId session, BulkPostDocuments request) {
+        ChangeSet changeSet = loadOwned(session);
+        requireLive(changeSet, "post documents");
+        DocumentPostingHandler posting = handlers.postingFor(request.resourceType());
+
+        for (UUID id : request.ids()) {
+            posting.post(id);
+            changeSet.record(new RecordedOperation(
+                    EntityRef.of(request.resourceType(), id), ChangeOperation.POST, null, null, now()));
+            audit.record("changeset.document-posted", request.resourceType(), id, null);
+        }
+        store.save(changeSet);
+    }
+
     /** Closes a session: a Probemodus session applies its buffered operations ("Übertragen"). */
     @Transactional
     @PreAuthorize("hasPermission(null, 'changeset.bulk:execute')")
@@ -329,6 +352,7 @@ public class ChangeSetService {
             case UPDATE -> handlers.reversibleFor(type).compensate(ChangeOperation.UPDATE, id, op.beforeState());
             case DELETE -> handlers.lifecycleFor(type).recreate(id, op.beforeState()); // re-create from snapshot
             case CREATE -> handlers.lifecycleFor(type).delete(id);                     // remove what was created
+            case POST -> handlers.postingFor(type).storno(id);                         // cancel posted Beleg via storno
         }
     }
 
