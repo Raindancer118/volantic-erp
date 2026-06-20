@@ -89,7 +89,11 @@ class ChangeSetFlowIT {
     }
 
     private CustomerId newCustomer(String number, String name) {
-        return customers.createCustomer(number, name, "info@acme.de").id();
+        return newCustomer(number, name, "info@acme.de");
+    }
+
+    private CustomerId newCustomer(String number, String name, String email) {
+        return customers.createCustomer(number, name, email).id();
     }
 
     private String nameOf(CustomerId id) {
@@ -142,6 +146,25 @@ class ChangeSetFlowIT {
 
         assertThat(nameOf(id)).isEqualTo("Initech");
         assertThat(changeSets.getSession(session).status()).isEqualTo(ChangeSetStatus.DISCARDED);
+    }
+
+    @Test
+    void filteredLiveMassEditChangesAllMatchesAndIsReversible() {
+        // Two customers share a unique e-mail so a filter selects exactly them (ADR-0006 §5).
+        String email = "filter-group@volantic.de";
+        CustomerId first = newCustomer("C-FILTER-1", "Alpha", email);
+        CustomerId second = newCustomer("C-FILTER-2", "Beta", email);
+
+        ChangeSetId session = changeSets.beginLive();
+        changeSets.apply(session, BulkChange.byFilter(TYPE, Map.of("email", email), Map.of("name", "Renamed")));
+
+        assertThat(nameOf(first)).isEqualTo("Renamed");
+        assertThat(nameOf(second)).isEqualTo("Renamed");
+
+        changeSets.revert(session);
+
+        assertThat(nameOf(first)).isEqualTo("Alpha");
+        assertThat(nameOf(second)).isEqualTo("Beta");
     }
 
     @Test
