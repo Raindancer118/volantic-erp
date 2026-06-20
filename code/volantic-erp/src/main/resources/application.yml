@@ -37,6 +37,7 @@ spring:
       - classpath:db/migration/catalog
       - classpath:db/migration/audit
       - classpath:db/migration/changeset
+      - classpath:db/migration/sales
 
   # Spring Modulith event publication registry (Outbox). Two settings keep it healthy:
   #  - completion-mode: delete — completed publications are removed instead of just flagged, so the
