@@ -4,6 +4,12 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-20 `feat(changeset)` (85ba538) — concrete core.revision handlers for crm + catalog (M5)
+  - engine now works end-to-end instead of UnknownResourceTypeException for every type
+  - AbstractFieldMapHandler shared template (capture/partial-overlay apply/UPDATE compensation)
+  - crm Customer/Supplier/Contact/Address + catalog Product handlers, all writes through @PreAuthorize'd domain services
+  - bulk CREATE/DELETE rejected loudly (ADR-0006 scope)
+  - base + per-aggregate field-wiring tests 
 - 2026-06-20 `refactor(crm)` (1a47ccd) — reuse EmailAddresses in Supplier (remove duplicate, weaker email check)
   - Supplier used a weaker contains('@') check that drifted from Customer/Contact's shared EmailAddresses.normalize
   - now rejects malformed e.g. a@b consistently 
