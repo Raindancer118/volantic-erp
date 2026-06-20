@@ -4,6 +4,10 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-20 `feat(changeset)` (8ef65b8) — read/list API for sessions (overview + detail)
+  - ChangeSetStore.findByActor (paged, newest first) + service getSession/listSessions (owned, current actor)
+  - GET /v1/changeset/sessions + /{id} with summary/detail DTOs and a derived 'revertible' flag
+  - contract + ownership + Testcontainers filtering tests 
 - 2026-06-20 `feat(changeset)` (85ba538) — concrete core.revision handlers for crm + catalog (M5)
   - engine now works end-to-end instead of UnknownResourceTypeException for every type
   - AbstractFieldMapHandler shared template (capture/partial-overlay apply/UPDATE compensation)
