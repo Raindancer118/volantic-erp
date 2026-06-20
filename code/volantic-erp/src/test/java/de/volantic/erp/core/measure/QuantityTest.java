@@ -55,4 +55,16 @@ class QuantityTest {
         assertThat(Quantity.of("0.00", UnitOfMeasure.PIECE).isZero()).isTrue();
         assertThat(Quantity.of("0.01", UnitOfMeasure.PIECE).isZero()).isFalse();
     }
+
+    @Test
+    void rejectsAmountFinerThanTheStorageScale() {
+        // NUMERIC(19,4) would silently truncate a 5th decimal — reject it instead of losing data.
+        assertThatThrownBy(() -> Quantity.of("10.12345", UnitOfMeasure.KILOGRAM))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void acceptsUpToFourDecimals() {
+        assertThat(Quantity.of("10.1234", UnitOfMeasure.KILOGRAM).amount()).isEqualByComparingTo("10.1234");
+    }
 }

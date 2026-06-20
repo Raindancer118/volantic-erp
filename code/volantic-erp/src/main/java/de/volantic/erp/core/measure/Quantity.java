@@ -10,9 +10,21 @@ import java.util.Objects;
  */
 public record Quantity(BigDecimal amount, UnitOfMeasure unit) {
 
+    /**
+     * Maximum number of fractional digits, mirroring the {@code NUMERIC(19,4)} storage of quantity
+     * amounts (e.g. {@code catalog.bom_line.qty_amount}). A finer value would be <em>silently truncated</em>
+     * by the database on persist, so it is rejected here at the domain boundary (fail-fast, no silent
+     * data loss — GoBD).
+     */
+    public static final int MAX_SCALE = 4;
+
     public Quantity {
         Objects.requireNonNull(amount, "amount must not be null");
         Objects.requireNonNull(unit, "unit must not be null");
+        if (amount.scale() > MAX_SCALE) {
+            throw new IllegalArgumentException("amount has more than " + MAX_SCALE
+                    + " decimal places (would be truncated on persist): " + amount.toPlainString());
+        }
     }
 
     public static Quantity of(BigDecimal amount, UnitOfMeasure unit) {

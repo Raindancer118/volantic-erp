@@ -22,7 +22,7 @@ class ProductEntity extends AbstractEntity {
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(name = "price_amount", nullable = false)
+    @Column(name = "price_amount", nullable = false, precision = 19, scale = 4)
     private BigDecimal priceAmount;
 
     @Column(name = "price_currency", nullable = false, length = 3)

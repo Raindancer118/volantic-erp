@@ -58,4 +58,13 @@ class BomTest {
         assertThatThrownBy(() -> new BomLine(productId(), Quantity.of("0", UnitOfMeasure.PIECE)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void rejectsTheSameComponentTwice() {
+        ProductId component = productId();
+        assertThatThrownBy(() -> Bom.create(productId(), 1, null, null, List.of(
+                new BomLine(component, Quantity.of("1", UnitOfMeasure.PIECE)),
+                new BomLine(component, Quantity.of("2", UnitOfMeasure.PIECE)))))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 }

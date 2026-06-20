@@ -28,6 +28,11 @@ public final class Bom {
         if (lines == null || lines.isEmpty()) {
             throw new IllegalArgumentException("a BOM must have at least one line");
         }
+        // A component must appear at most once: duplicates would double-count in MRP explosions and can
+        // hide cycles from the circular-reference check. Merge quantities upstream instead.
+        if (lines.stream().map(BomLine::componentId).distinct().count() != lines.size()) {
+            throw new IllegalArgumentException("a BOM must not list the same component more than once");
+        }
         if (validFrom != null && validTo != null && validTo.isBefore(validFrom)) {
             throw new IllegalArgumentException("validTo must not be before validFrom");
         }
