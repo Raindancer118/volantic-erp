@@ -4,6 +4,19 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-20 `feat(changeset)` (86cd996) — filter-based mass-edit selection across all aggregates (ADR-0006 §5)
+  - mass edit can target 'all resources where field=value' not just an id list
+  - BulkEditHandler filterableFields()/selectIds(); BulkChange ids XOR filter; ChangeSetService resolves filter->ids via handler
+  - crm+catalog handlers filter through their @PreAuthorize'd read side (nullable-param JPQL)
+  - FieldNotFilterableException->422
+  - full-context filtered flow proven in ChangeSetFlowIT 
+- 2026-06-20 `fix(crm,catalog)` (5d053bd) — not-found read must not mark caller's transaction rollback-only
+  - changeset handlers probe existence via read getters inside a wider tx; the thrown NotFound marked the shared tx rollback-only, failing a later preview commit with UnexpectedRollbackException
+  - read getters now noRollbackFor their NotFound 
+- 2026-06-20 `fix(security)` (bcacc7e) — fail-open authorization-cache eviction
+  - manual cache.evictIfPresent bypassed CacheConfig's CacheErrorHandler, so a Redis outage failed every security write (provision/role/assign) despite the documented fail-open contract
+  - swallow cache errors, bounded by TTL
+  - regression test 
 - 2026-06-20 `feat(changeset)` (8ef65b8) — read/list API for sessions (overview + detail)
   - ChangeSetStore.findByActor (paged, newest first) + service getSession/listSessions (owned, current actor)
   - GET /v1/changeset/sessions + /{id} with summary/detail DTOs and a derived 'revertible' flag
