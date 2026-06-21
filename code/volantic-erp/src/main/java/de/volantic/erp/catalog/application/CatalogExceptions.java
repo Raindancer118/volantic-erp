@@ -48,4 +48,12 @@ public final class CatalogExceptions {
             super("bom version already exists for product " + productId.value() + ": v" + version);
         }
     }
+
+    /** A component (transitively) depends back on the product being built — mapped to HTTP 422. */
+    public static final class CircularBom extends RuntimeException {
+        public CircularBom(ProductId productId, ProductId component) {
+            super("circular BOM: component " + component.value()
+                    + " depends back on product " + productId.value());
+        }
+    }
 }

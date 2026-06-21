@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
 
 /** Outbound adapter for {@link SupplierRepository}: maps between domain {@link Supplier} and JPA. */
@@ -21,10 +22,11 @@ class SupplierRepositoryAdapter implements SupplierRepository {
 
     @Override
     public Supplier save(Supplier supplier) {
-        SupplierEntity entity = jpa.findById(supplier.id().value())
-                .orElseGet(() -> new SupplierEntity(
-                        supplier.id().value(), supplier.supplierNumber(), supplier.name(), supplier.email()));
-        entity.apply(supplier.name(), supplier.email());
+        // Versioned aggregate → version-checked merge (optimistic locking); new → insert. No re-fetch.
+        SupplierEntity entity = supplier.version() == null
+                ? new SupplierEntity(supplier.id().value(), supplier.supplierNumber(), supplier.name(), supplier.email())
+                : SupplierEntity.forUpdate(supplier.id().value(), supplier.supplierNumber(),
+                        supplier.name(), supplier.email(), supplier.version());
         return toDomain(jpa.save(entity));
     }
 
@@ -43,8 +45,22 @@ class SupplierRepositoryAdapter implements SupplierRepository {
         return jpa.findAll(pageable).map(this::toDomain);
     }
 
+    @Override
+    public List<SupplierId> findIds(String name, String email) {
+        return jpa.findIdsByFilter(name, email).stream().map(SupplierId::new).toList();
+    }
+
+    @Override
+    public boolean deleteById(SupplierId id) {
+        if (!jpa.existsById(id.value())) {
+            return false;
+        }
+        jpa.deleteById(id.value());
+        return true;
+    }
+
     private Supplier toDomain(SupplierEntity entity) {
-        return Supplier.reconstitute(
-                new SupplierId(entity.getId()), entity.supplierNumber(), entity.name(), entity.email());
+        return Supplier.reconstitute(new SupplierId(entity.getId()), entity.getVersion(),
+                entity.supplierNumber(), entity.name(), entity.email());
     }
 }

@@ -10,9 +10,21 @@ import java.util.Objects;
  */
 public record Quantity(BigDecimal amount, UnitOfMeasure unit) {
 
+    /**
+     * Maximum number of fractional digits, mirroring the {@code NUMERIC(19,4)} storage of quantity
+     * amounts (e.g. {@code catalog.bom_line.qty_amount}). A finer value would be <em>silently truncated</em>
+     * by the database on persist, so it is rejected here at the domain boundary (fail-fast, no silent
+     * data loss — GoBD).
+     */
+    public static final int MAX_SCALE = 4;
+
     public Quantity {
         Objects.requireNonNull(amount, "amount must not be null");
         Objects.requireNonNull(unit, "unit must not be null");
+        if (amount.scale() > MAX_SCALE) {
+            throw new IllegalArgumentException("amount has more than " + MAX_SCALE
+                    + " decimal places (would be truncated on persist): " + amount.toPlainString());
+        }
     }
 
     public static Quantity of(BigDecimal amount, UnitOfMeasure unit) {
@@ -42,9 +54,37 @@ public record Quantity(BigDecimal amount, UnitOfMeasure unit) {
         return amount.signum() < 0;
     }
 
+    public boolean isZero() {
+        return amount.signum() == 0;
+    }
+
     private void requireSameUnit(Quantity other) {
         if (!unit.equals(other.unit)) {
             throw new IllegalArgumentException("unit mismatch: " + unit.code() + " vs " + other.unit.code());
         }
+    }
+
+    /**
+     * Value equality that is scale-insensitive on the amount: {@code Quantity.of("2")} equals
+     * {@code Quantity.of("2.0")}. The record's generated {@code equals} would delegate to
+     * {@link BigDecimal#equals(Object)}, which compares value <em>and</em> scale and would report those
+     * two as different — silently breaking comparisons, set membership and BOM logic. We compare the
+     * amount via {@link BigDecimal#compareTo} instead.
+     */
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        return other instanceof Quantity that
+                && unit.equals(that.unit)
+                && amount.compareTo(that.amount) == 0;
+    }
+
+    @Override
+    public int hashCode() {
+        // Must agree with the scale-insensitive equals: strip the scale before hashing so equal values
+        // (different scale) land in the same bucket.
+        return Objects.hash(amount.stripTrailingZeros(), unit);
     }
 }

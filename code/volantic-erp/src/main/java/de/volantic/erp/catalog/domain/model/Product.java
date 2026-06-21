@@ -11,22 +11,34 @@ public final class Product {
 
     private final ProductId id;
     private final String sku;
+    private final Long version;
     private String name;
     private Money listPrice;
 
-    private Product(ProductId id, String sku, String name, Money listPrice) {
+    private Product(ProductId id, Long version, String sku, String name, Money listPrice) {
         this.id = id;
+        this.version = version;
         this.sku = requireText(sku, "sku");
         this.name = requireText(name, "name");
         this.listPrice = requireNonNull(listPrice);
     }
 
     public static Product create(String sku, String name, Money listPrice) {
-        return new Product(new ProductId(UuidV7.randomUuid()), sku, name, listPrice);
+        return new Product(new ProductId(UuidV7.randomUuid()), null, sku, name, listPrice);
     }
 
     public static Product reconstitute(ProductId id, String sku, String name, Money listPrice) {
-        return new Product(id, sku, name, listPrice);
+        return new Product(id, null, sku, name, listPrice);
+    }
+
+    /** Re-creates an existing product including its optimistic-lock version (used by the persistence adapter). */
+    public static Product reconstitute(ProductId id, long version, String sku, String name, Money listPrice) {
+        return new Product(id, version, sku, name, listPrice);
+    }
+
+    /** Optimistic-lock version this aggregate was loaded at; {@code null} for a not-yet-persisted one. */
+    public Long version() {
+        return version;
     }
 
     public void rename(String newName) {
@@ -51,6 +63,17 @@ public final class Product {
 
     public Money listPrice() {
         return listPrice;
+    }
+
+    /** Identity equality: two products are the same iff they share an id, regardless of mutable state. */
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof Product that && id.equals(that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id.hashCode();
     }
 
     private static String requireText(String value, String field) {

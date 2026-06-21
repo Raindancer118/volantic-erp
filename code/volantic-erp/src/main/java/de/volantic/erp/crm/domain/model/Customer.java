@@ -13,24 +13,36 @@ public final class Customer {
 
     private final CustomerId id;
     private final String customerNumber;
+    private final Long version;
     private String name;
     private String email;
 
-    private Customer(CustomerId id, String customerNumber, String name, String email) {
+    private Customer(CustomerId id, Long version, String customerNumber, String name, String email) {
         this.id = id;
+        this.version = version;
         this.customerNumber = requireText(customerNumber, "customerNumber");
         this.name = requireText(name, "name");
         this.email = normalizeEmail(email);
     }
 
-    /** Creates a brand-new customer with a fresh identity. */
+    /** Creates a brand-new customer with a fresh identity (no version yet — assigned on first persist). */
     public static Customer create(String customerNumber, String name, String email) {
-        return new Customer(new CustomerId(UuidV7.randomUuid()), customerNumber, name, email);
+        return new Customer(new CustomerId(UuidV7.randomUuid()), null, customerNumber, name, email);
     }
 
-    /** Re-creates an existing customer from persisted state (used by the persistence adapter). */
+    /** Re-creates an existing customer from persisted state (test/legacy overload without a version). */
     public static Customer reconstitute(CustomerId id, String customerNumber, String name, String email) {
-        return new Customer(id, customerNumber, name, email);
+        return new Customer(id, null, customerNumber, name, email);
+    }
+
+    /** Re-creates an existing customer including its optimistic-lock version (used by the persistence adapter). */
+    public static Customer reconstitute(CustomerId id, long version, String customerNumber, String name, String email) {
+        return new Customer(id, version, customerNumber, name, email);
+    }
+
+    /** Optimistic-lock version this aggregate was loaded at; {@code null} for a not-yet-persisted one. */
+    public Long version() {
+        return version;
     }
 
     public void rename(String newName) {
@@ -57,6 +69,17 @@ public final class Customer {
         return email;
     }
 
+    /** Identity equality: two customers are the same iff they share an id, regardless of mutable state. */
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof Customer that && id.equals(that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id.hashCode();
+    }
+
     private static String requireText(String value, String field) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(field + " must not be blank");
@@ -65,13 +88,6 @@ public final class Customer {
     }
 
     private static String normalizeEmail(String email) {
-        if (email == null || email.isBlank()) {
-            return null;
-        }
-        String normalized = email.strip().toLowerCase();
-        if (!normalized.contains("@")) {
-            throw new IllegalArgumentException("email must contain '@'");
-        }
-        return normalized;
+        return EmailAddresses.normalize(email);
     }
 }

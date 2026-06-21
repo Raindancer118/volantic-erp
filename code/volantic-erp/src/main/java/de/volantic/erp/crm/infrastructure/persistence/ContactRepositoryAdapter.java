@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
 
 /** Outbound adapter for {@link ContactRepository}: maps between domain {@link Contact} and JPA. */
@@ -22,11 +23,12 @@ class ContactRepositoryAdapter implements ContactRepository {
 
     @Override
     public Contact save(Contact contact) {
-        ContactEntity entity = jpa.findById(contact.id().value())
-                .orElseGet(() -> new ContactEntity(
-                        contact.id().value(), contact.owner().type(), contact.owner().id(),
-                        contact.firstName(), contact.lastName(), contact.email(), contact.phone()));
-        entity.apply(contact.firstName(), contact.lastName(), contact.email(), contact.phone());
+        // Versioned aggregate → version-checked merge (optimistic locking); new → insert. No re-fetch.
+        ContactEntity entity = contact.version() == null
+                ? new ContactEntity(contact.id().value(), contact.owner().type(), contact.owner().id(),
+                        contact.firstName(), contact.lastName(), contact.email(), contact.phone())
+                : ContactEntity.forUpdate(contact.id().value(), contact.owner().type(), contact.owner().id(),
+                        contact.firstName(), contact.lastName(), contact.email(), contact.phone(), contact.version());
         return toDomain(jpa.save(entity));
     }
 
@@ -49,9 +51,14 @@ class ContactRepositoryAdapter implements ContactRepository {
         return true;
     }
 
+    @Override
+    public List<ContactId> findIds(String firstName, String lastName, String email) {
+        return jpa.findIdsByFilter(firstName, lastName, email).stream().map(ContactId::new).toList();
+    }
+
     private Contact toDomain(ContactEntity entity) {
         return Contact.reconstitute(
-                new ContactId(entity.getId()),
+                new ContactId(entity.getId()), entity.getVersion(),
                 PartnerRef.of(entity.ownerType(), entity.ownerId()),
                 entity.firstName(), entity.lastName(), entity.email(), entity.phone());
     }

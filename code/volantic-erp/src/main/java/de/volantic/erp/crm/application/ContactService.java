@@ -13,6 +13,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 /** Contact use cases. Authorization enforced here at the service boundary (ADR-0004). */
 @Service
 public class ContactService {
@@ -33,7 +35,8 @@ public class ContactService {
         return contact;
     }
 
-    @Transactional(readOnly = true)
+    // noRollbackFor: a not-found read must not poison a surrounding transaction (see CustomerService).
+    @Transactional(readOnly = true, noRollbackFor = ContactNotFoundException.class)
     @PreAuthorize("hasPermission(null, 'crm.contact:read')")
     public Contact getContact(ContactId id) {
         return contacts.findById(id).orElseThrow(() -> new ContactNotFoundException(id));
@@ -45,12 +48,44 @@ public class ContactService {
         return contacts.findByOwner(owner, pageable);
     }
 
+    /** Resolves a selection filter (first/last name and/or email, exact match) to matching contact ids. */
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasPermission(null, 'crm.contact:read')")
+    public List<ContactId> findContactIds(String firstName, String lastName, String email) {
+        return contacts.findIds(firstName, lastName, email);
+    }
+
+    /** Update with an explicit optimistic-lock check (REST CRUD via ETag/If-Match). */
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'crm.contact:write')")
+    public Contact updateContact(ContactId id, long expectedVersion,
+                                 String firstName, String lastName, String email, String phone) {
+        Contact contact = contacts.findById(id).orElseThrow(() -> new ContactNotFoundException(id));
+        de.volantic.erp.core.OptimisticLock.check(contact.version(), expectedVersion, id);
+        contact.change(firstName, lastName, email, phone);
+        return contacts.save(contact);
+    }
+
+    /** Update without an explicit version — internal/bulk callers; still version-safe within the tx. */
     @Transactional
     @PreAuthorize("hasPermission(null, 'crm.contact:write')")
     public Contact updateContact(ContactId id, String firstName, String lastName, String email, String phone) {
         Contact contact = contacts.findById(id).orElseThrow(() -> new ContactNotFoundException(id));
         contact.change(firstName, lastName, email, phone);
         return contacts.save(contact);
+    }
+
+    /**
+     * Re-creates a previously deleted contact with its original id (Rollback Engine compensation of a
+     * DELETE). Re-publishes the link event so the 360° graph edge is restored.
+     */
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'crm.contact:write')")
+    public Contact recreateContact(ContactId id, PartnerRef owner,
+                                   String firstName, String lastName, String email, String phone) {
+        Contact contact = contacts.save(Contact.reconstitute(id, owner, firstName, lastName, email, phone));
+        events.publishEvent(new PartnerContactLinked(owner, contact.id()));
+        return contact;
     }
 
     @Transactional

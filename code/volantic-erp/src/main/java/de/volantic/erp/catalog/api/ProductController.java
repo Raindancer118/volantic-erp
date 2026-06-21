@@ -4,16 +4,19 @@ import de.volantic.erp.catalog.application.ProductService;
 import de.volantic.erp.catalog.domain.model.Product;
 import de.volantic.erp.catalog.domain.model.ProductId;
 import de.volantic.erp.core.measure.Money;
+import de.volantic.erp.core.web.ETags;
 import de.volantic.erp.core.web.PageResponse;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -42,12 +45,13 @@ class ProductController {
         Product created = products.createProduct(request.sku(), request.name(), price);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}").buildAndExpand(created.id().value()).toUri();
-        return ResponseEntity.created(location).body(ProductResponse.from(created));
+        ProductResponse body = ProductResponse.from(created);
+        return ResponseEntity.created(location).eTag(ETags.format(body.version())).body(body);
     }
 
     @GetMapping("/{id}")
-    ProductResponse getById(@PathVariable UUID id) {
-        return ProductResponse.from(products.getProduct(new ProductId(id)));
+    ResponseEntity<ProductResponse> getById(@PathVariable UUID id) {
+        return withETag(ProductResponse.from(products.getProduct(new ProductId(id))));
     }
 
     @GetMapping
@@ -56,8 +60,15 @@ class ProductController {
     }
 
     @PutMapping("/{id}")
-    ProductResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateProductRequest request) {
+    ResponseEntity<ProductResponse> update(@PathVariable UUID id,
+            @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+            @Valid @RequestBody UpdateProductRequest request) {
         Money price = Money.of(request.priceAmount(), Currency.getInstance(request.priceCurrency()));
-        return ProductResponse.from(products.updateProduct(new ProductId(id), request.name(), price));
+        Product updated = products.updateProduct(new ProductId(id), ETags.parseIfMatch(ifMatch), request.name(), price);
+        return withETag(ProductResponse.from(updated));
+    }
+
+    private static ResponseEntity<ProductResponse> withETag(ProductResponse body) {
+        return ResponseEntity.ok().eTag(ETags.format(body.version())).body(body);
     }
 }

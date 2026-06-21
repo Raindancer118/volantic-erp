@@ -9,6 +9,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 
 /**
@@ -25,7 +26,10 @@ class JpaAuditingConfig {
 
     @Bean
     DateTimeProvider auditingDateTimeProvider() {
-        return () -> Optional.of(OffsetDateTime.now());
+        // Always UTC: OffsetDateTime.now() would inherit the JVM default zone, so two pods in different
+        // regions (or a developer's machine) would stamp inconsistent offsets, breaking cross-node
+        // ordering and the GoBD chronology.
+        return () -> Optional.of(OffsetDateTime.now(ZoneOffset.UTC));
     }
 
     @Bean

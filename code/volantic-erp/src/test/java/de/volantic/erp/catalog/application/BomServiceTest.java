@@ -73,6 +73,32 @@ class BomServiceTest {
     }
 
     @Test
+    void createRejectsDirectSelfReference() {
+        ProductId productId = id();
+        when(products.existsById(productId)).thenReturn(true);
+
+        // A line whose component is the product itself is an immediate cycle.
+        assertThatThrownBy(() -> service.createBom(productId, 1, null, null, List.of(line(productId))))
+                .isInstanceOf(CatalogExceptions.CircularBom.class);
+        verify(boms, never()).save(any());
+    }
+
+    @Test
+    void createRejectsTransitiveCycle() {
+        ProductId productId = id();   // A, being created
+        ProductId componentId = id(); // B, a component of A
+        when(products.existsById(productId)).thenReturn(true);
+        when(products.existsById(componentId)).thenReturn(true);
+        // B already has a BOM whose line points back to A → A → B → A is a cycle.
+        Bom componentBom = Bom.create(componentId, 1, null, null, List.of(line(productId)));
+        when(boms.findByProductId(componentId)).thenReturn(List.of(componentBom));
+
+        assertThatThrownBy(() -> service.createBom(productId, 1, null, null, List.of(line(componentId))))
+                .isInstanceOf(CatalogExceptions.CircularBom.class);
+        verify(boms, never()).save(any());
+    }
+
+    @Test
     void createRejectsDuplicateVersion() {
         ProductId productId = id();
         ProductId componentId = id();

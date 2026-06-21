@@ -25,6 +25,21 @@ class SupplierTest {
     }
 
     @Test
+    void emailValidationMatchesTheSharedCrmRule() {
+        // Supplier must apply the exact same e-mail rule as Customer/Contact (EmailAddresses), not a
+        // weaker contains("@") check: a domain without a dot is garbage and must be rejected.
+        assertThatThrownBy(() -> Supplier.create("S-1", "Globex", "a@b"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> Supplier.create("S-1", "Globex", "a@"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void blankEmailIsAllowedAndStoredAsNull() {
+        assertThat(Supplier.create("S-1", "Globex", "  ").email()).isNull();
+    }
+
+    @Test
     void renameAndChangeEmailMutate() {
         Supplier supplier = Supplier.create("S-1", "Globex", "a@globex.de");
 

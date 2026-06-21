@@ -5,6 +5,7 @@ import de.volantic.erp.catalog.domain.model.ProductId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
 import java.util.Optional;
 
 /** Outbound port for product persistence. */
@@ -19,4 +20,10 @@ public interface ProductRepository {
     boolean existsBySku(String sku);
 
     Page<Product> findAll(Pageable pageable);
+
+    /** Ids of products matching the optional equality filter (null fields ignored, ANDed). */
+    List<ProductId> findIds(String name, String currencyCode);
+
+    /** Deletes the product; returns {@code false} if it did not exist. */
+    boolean deleteById(ProductId id);
 }

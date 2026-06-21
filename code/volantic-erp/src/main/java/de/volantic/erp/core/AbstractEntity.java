@@ -92,6 +92,19 @@ public abstract class AbstractEntity implements Persistable<UUID> {
         this.isNew = true;
     }
 
+    /**
+     * Marks this freshly built instance as an <em>already-persisted</em> aggregate carrying the given
+     * optimistic-lock {@code version}, so that {@code repository.save(...)} performs a version-checked
+     * {@code merge} (UPDATE … WHERE version = ?) instead of an insert. This is how the persistence
+     * adapters enforce optimistic locking without re-loading the row first — re-loading would discard the
+     * expected version and reopen the lost-update window. A concurrent modification makes the merge fail
+     * with an optimistic-locking exception.
+     */
+    protected void markPersisted(long version) {
+        this.version = version;
+        this.isNew = false;
+    }
+
     @Override
     public UUID getId() {
         return id;

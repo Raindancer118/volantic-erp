@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -25,10 +26,14 @@ class CustomerRepositoryAdapter implements CustomerRepository {
 
     @Override
     public Customer save(Customer customer) {
-        CustomerEntity entity = jpa.findById(customer.id().value())
-                .orElseGet(() -> new CustomerEntity(
-                        customer.id().value(), customer.customerNumber(), customer.name(), customer.email()));
-        entity.apply(customer.name(), customer.email());
+        // A versioned aggregate is saved as a detached, version-checked merge (optimistic locking); a
+        // new one (no version) is inserted. We deliberately do NOT re-fetch first — re-fetching would
+        // load the latest row version and discard the caller's expected version, reopening the
+        // lost-update window the @Version field exists to close.
+        CustomerEntity entity = customer.version() == null
+                ? new CustomerEntity(customer.id().value(), customer.customerNumber(), customer.name(), customer.email())
+                : CustomerEntity.forUpdate(customer.id().value(), customer.customerNumber(),
+                        customer.name(), customer.email(), customer.version());
         return toDomain(jpa.save(entity));
     }
 
@@ -47,8 +52,22 @@ class CustomerRepositoryAdapter implements CustomerRepository {
         return jpa.findAll(pageable).map(this::toDomain);
     }
 
+    @Override
+    public List<CustomerId> findIds(String name, String email) {
+        return jpa.findIdsByFilter(name, email).stream().map(CustomerId::new).toList();
+    }
+
+    @Override
+    public boolean deleteById(CustomerId id) {
+        if (!jpa.existsById(id.value())) {
+            return false;
+        }
+        jpa.deleteById(id.value());
+        return true;
+    }
+
     private Customer toDomain(CustomerEntity entity) {
-        return Customer.reconstitute(
-                new CustomerId(entity.getId()), entity.customerNumber(), entity.name(), entity.email());
+        return Customer.reconstitute(new CustomerId(entity.getId()), entity.getVersion(),
+                entity.customerNumber(), entity.name(), entity.email());
     }
 }

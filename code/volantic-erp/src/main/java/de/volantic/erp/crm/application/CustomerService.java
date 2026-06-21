@@ -1,5 +1,6 @@
 package de.volantic.erp.crm.application;
 
+import de.volantic.erp.core.OptimisticLock;
 import de.volantic.erp.crm.application.port.out.CustomerRepository;
 import de.volantic.erp.crm.domain.model.Customer;
 import de.volantic.erp.crm.domain.model.CustomerId;
@@ -8,6 +9,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 /**
  * Customer use cases. Enforcement happens here at the service boundary (ADR-0004) via
@@ -32,7 +35,10 @@ public class CustomerService {
         return customers.save(Customer.create(customerNumber, name, email));
     }
 
-    @Transactional(readOnly = true)
+    // noRollbackFor: a not-found lookup must not mark a surrounding transaction rollback-only — the
+    // change-set handlers call this inside a wider tx to probe existence (capture() returns null when
+    // absent), and a missing resource there is an expected, non-fatal outcome, not a write failure.
+    @Transactional(readOnly = true, noRollbackFor = CustomerNotFoundException.class)
     @PreAuthorize("hasPermission(null, 'crm.customer:read')")
     public Customer getCustomer(CustomerId id) {
         return customers.findById(id).orElseThrow(() -> new CustomerNotFoundException(id));
@@ -44,6 +50,32 @@ public class CustomerService {
         return customers.findAll(pageable);
     }
 
+    /** Resolves a selection filter (name and/or email, exact match) to the matching customer ids. */
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasPermission(null, 'crm.customer:read')")
+    public List<CustomerId> findCustomerIds(String name, String email) {
+        return customers.findIds(name, email);
+    }
+
+    /**
+     * Updates with an explicit optimistic-lock check (REST CRUD via ETag/If-Match): rejects the write if
+     * the resource changed since the caller read {@code expectedVersion}.
+     */
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'crm.customer:update')")
+    public Customer updateCustomer(CustomerId id, long expectedVersion, String name, String email) {
+        Customer customer = customers.findById(id).orElseThrow(() -> new CustomerNotFoundException(id));
+        OptimisticLock.check(customer.version(), expectedVersion, id);
+        customer.rename(name);
+        customer.changeEmail(email);
+        return customers.save(customer);
+    }
+
+    /**
+     * Updates without an explicit expected version — for internal/bulk callers (the change-set engine)
+     * that have no client ETag. Still version-safe within the transaction: the loaded aggregate carries
+     * its version and is saved via a version-checked merge, so a concurrent change is detected.
+     */
     @Transactional
     @PreAuthorize("hasPermission(null, 'crm.customer:update')")
     public Customer updateCustomer(CustomerId id, String name, String email) {
@@ -51,5 +83,25 @@ public class CustomerService {
         customer.rename(name);
         customer.changeEmail(email);
         return customers.save(customer);
+    }
+
+    /** Deletes a customer (used directly and as a change-set bulk delete). Idempotent target check. */
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'crm.customer:delete')")
+    public void deleteCustomer(CustomerId id) {
+        if (!customers.deleteById(id)) {
+            throw new CustomerNotFoundException(id);
+        }
+    }
+
+    /**
+     * Re-creates a previously deleted customer with its original id and business key (Rollback Engine
+     * compensation of a DELETE). Bypasses the duplicate-number check on purpose — it restores exactly
+     * what was removed, including its customer number.
+     */
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'crm.customer:create')")
+    public Customer recreateCustomer(CustomerId id, String customerNumber, String name, String email) {
+        return customers.save(Customer.reconstitute(id, customerNumber, name, email));
     }
 }

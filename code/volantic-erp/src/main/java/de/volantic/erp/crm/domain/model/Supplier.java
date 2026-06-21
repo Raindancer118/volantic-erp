@@ -11,22 +11,34 @@ public final class Supplier {
 
     private final SupplierId id;
     private final String supplierNumber;
+    private final Long version;
     private String name;
     private String email;
 
-    private Supplier(SupplierId id, String supplierNumber, String name, String email) {
+    private Supplier(SupplierId id, Long version, String supplierNumber, String name, String email) {
         this.id = id;
+        this.version = version;
         this.supplierNumber = requireText(supplierNumber, "supplierNumber");
         this.name = requireText(name, "name");
         this.email = normalizeEmail(email);
     }
 
     public static Supplier create(String supplierNumber, String name, String email) {
-        return new Supplier(new SupplierId(UuidV7.randomUuid()), supplierNumber, name, email);
+        return new Supplier(new SupplierId(UuidV7.randomUuid()), null, supplierNumber, name, email);
     }
 
     public static Supplier reconstitute(SupplierId id, String supplierNumber, String name, String email) {
-        return new Supplier(id, supplierNumber, name, email);
+        return new Supplier(id, null, supplierNumber, name, email);
+    }
+
+    /** Re-creates an existing supplier including its optimistic-lock version (used by the persistence adapter). */
+    public static Supplier reconstitute(SupplierId id, long version, String supplierNumber, String name, String email) {
+        return new Supplier(id, version, supplierNumber, name, email);
+    }
+
+    /** Optimistic-lock version this aggregate was loaded at; {@code null} for a not-yet-persisted one. */
+    public Long version() {
+        return version;
     }
 
     public void rename(String newName) {
@@ -53,6 +65,17 @@ public final class Supplier {
         return email;
     }
 
+    /** Identity equality: two suppliers are the same iff they share an id, regardless of mutable state. */
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof Supplier that && id.equals(that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id.hashCode();
+    }
+
     private static String requireText(String value, String field) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(field + " must not be blank");
@@ -61,13 +84,6 @@ public final class Supplier {
     }
 
     private static String normalizeEmail(String email) {
-        if (email == null || email.isBlank()) {
-            return null;
-        }
-        String normalized = email.strip().toLowerCase();
-        if (!normalized.contains("@")) {
-            throw new IllegalArgumentException("email must contain '@'");
-        }
-        return normalized;
+        return EmailAddresses.normalize(email);
     }
 }

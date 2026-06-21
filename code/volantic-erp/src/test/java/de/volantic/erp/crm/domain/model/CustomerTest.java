@@ -31,6 +31,11 @@ class CustomerTest {
     void invalidEmailIsRejectedAndEmptyBecomesNull() {
         assertThatThrownBy(() -> Customer.create("C-1", "ACME", "not-an-email"))
                 .isInstanceOf(IllegalArgumentException.class);
+        // Syntactically broken addresses a bare contains("@") would have let through.
+        assertThatThrownBy(() -> Customer.create("C-1", "ACME", "a@b"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> Customer.create("C-1", "ACME", "a@@b.de"))
+                .isInstanceOf(IllegalArgumentException.class);
 
         assertThat(Customer.create("C-1", "ACME", "  ").email()).isNull();
     }

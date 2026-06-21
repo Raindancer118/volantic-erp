@@ -5,6 +5,7 @@ import de.volantic.erp.crm.domain.model.CustomerId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -20,4 +21,10 @@ public interface CustomerRepository {
     boolean existsByCustomerNumber(String customerNumber);
 
     Page<Customer> findAll(Pageable pageable);
+
+    /** Ids of customers matching the optional equality filter (null fields ignored, ANDed). */
+    List<CustomerId> findIds(String name, String email);
+
+    /** Deletes the customer; returns {@code false} if it did not exist. */
+    boolean deleteById(CustomerId id);
 }

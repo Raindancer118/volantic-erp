@@ -50,7 +50,16 @@ class AppUserEntity extends AbstractEntity {
     }
 
     void assignRole(RoleEntity role, AccessScope scope) {
-        roleAssignments.add(new UserRoleEntity(this, role, scope));
+        // Idempotent: the same role at the same scope must not produce duplicate rows. UserRoleEntity
+        // extends AbstractEntity (id-based equals with a fresh id per instance), so the Set alone would
+        // treat every call as distinct — we compare role + scope explicitly (and the DB enforces a
+        // UNIQUE constraint as the backstop).
+        AccessScope effectiveScope = scope == null ? AccessScope.GLOBAL : scope;
+        boolean alreadyAssigned = roleAssignments.stream().anyMatch(assignment ->
+                assignment.role().getId().equals(role.getId()) && assignment.scope().equals(effectiveScope));
+        if (!alreadyAssigned) {
+            roleAssignments.add(new UserRoleEntity(this, role, scope));
+        }
     }
 
     void changeStatus(UserStatus newStatus) {

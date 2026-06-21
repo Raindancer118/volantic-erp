@@ -16,8 +16,8 @@ public record BomLine(ProductId componentId, Quantity quantity) {
         if (quantity == null) {
             throw new IllegalArgumentException("quantity must not be null");
         }
-        if (quantity.isNegative()) {
-            throw new IllegalArgumentException("quantity must not be negative");
+        if (quantity.isNegative() || quantity.isZero()) {
+            throw new IllegalArgumentException("quantity must be positive");
         }
     }
 }

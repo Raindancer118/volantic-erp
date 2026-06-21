@@ -36,6 +36,13 @@ class SupplierEntity extends AbstractEntity {
         this.email = email;
     }
 
+    /** Detached entity carrying the expected version for a version-checked merge (optimistic locking). */
+    static SupplierEntity forUpdate(UUID id, String supplierNumber, String name, String email, long version) {
+        SupplierEntity entity = new SupplierEntity(id, supplierNumber, name, email);
+        entity.markPersisted(version);
+        return entity;
+    }
+
     String supplierNumber() {
         return supplierNumber;
     }

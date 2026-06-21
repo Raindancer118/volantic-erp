@@ -1,7 +1,9 @@
 package de.volantic.erp.crm.api;
 
+import de.volantic.erp.core.web.ETags;
 import de.volantic.erp.crm.application.CrmConflictException;
 import de.volantic.erp.crm.application.CrmNotFoundException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -23,6 +25,19 @@ class CrmExceptionHandler {
     @ExceptionHandler(CrmConflictException.class)
     ProblemDetail handleConflict(CrmConflictException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+    }
+
+    /** A stale If-Match version (the resource changed since the client read it) → 412 Precondition Failed. */
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    ProblemDetail handleStale(OptimisticLockingFailureException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.PRECONDITION_FAILED,
+                "the resource was modified concurrently; re-read it and retry");
+    }
+
+    /** A conditional update without the required If-Match header → 428 Precondition Required. */
+    @ExceptionHandler(ETags.IfMatchRequiredException.class)
+    ProblemDetail handleMissingIfMatch(ETags.IfMatchRequiredException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.PRECONDITION_REQUIRED, exception.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

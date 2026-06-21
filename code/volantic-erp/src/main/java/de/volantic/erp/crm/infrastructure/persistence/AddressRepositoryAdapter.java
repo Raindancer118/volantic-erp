@@ -3,11 +3,13 @@ package de.volantic.erp.crm.infrastructure.persistence;
 import de.volantic.erp.crm.application.port.out.AddressRepository;
 import de.volantic.erp.crm.domain.model.Address;
 import de.volantic.erp.crm.domain.model.AddressId;
+import de.volantic.erp.crm.domain.model.AddressType;
 import de.volantic.erp.crm.domain.model.PartnerRef;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
 
 /** Outbound adapter for {@link AddressRepository}: maps between domain {@link Address} and JPA. */
@@ -22,11 +24,13 @@ class AddressRepositoryAdapter implements AddressRepository {
 
     @Override
     public Address save(Address address) {
-        AddressEntity entity = jpa.findById(address.id().value())
-                .orElseGet(() -> new AddressEntity(
-                        address.id().value(), address.owner().type(), address.owner().id(), address.type(),
-                        address.street(), address.postalCode(), address.city(), address.countryCode()));
-        entity.apply(address.type(), address.street(), address.postalCode(), address.city(), address.countryCode());
+        // Versioned aggregate → version-checked merge (optimistic locking); new → insert. No re-fetch.
+        AddressEntity entity = address.version() == null
+                ? new AddressEntity(address.id().value(), address.owner().type(), address.owner().id(),
+                        address.type(), address.street(), address.postalCode(), address.city(), address.countryCode())
+                : AddressEntity.forUpdate(address.id().value(), address.owner().type(), address.owner().id(),
+                        address.type(), address.street(), address.postalCode(), address.city(),
+                        address.countryCode(), address.version());
         return toDomain(jpa.save(entity));
     }
 
@@ -49,9 +53,14 @@ class AddressRepositoryAdapter implements AddressRepository {
         return true;
     }
 
+    @Override
+    public List<AddressId> findIds(AddressType type, String city, String postalCode, String countryCode) {
+        return jpa.findIdsByFilter(type, city, postalCode, countryCode).stream().map(AddressId::new).toList();
+    }
+
     private Address toDomain(AddressEntity entity) {
         return Address.reconstitute(
-                new AddressId(entity.getId()),
+                new AddressId(entity.getId()), entity.getVersion(),
                 PartnerRef.of(entity.ownerType(), entity.ownerId()),
                 entity.type(), entity.street(), entity.postalCode(), entity.city(), entity.countryCode());
     }

@@ -50,7 +50,8 @@ class AuditLogStoreIT {
         store.append(e2);
 
         assertThat(store.head().orElseThrow().sequence()).isEqualTo(2);
-        assertThat(store.findAllOrdered()).extracting(AuditEntry::sequence).containsExactly(1L, 2L);
+        assertThat(store.findAscending(PageRequest.of(0, 10)).getContent())
+                .extracting(AuditEntry::sequence).containsExactly(1L, 2L);
         assertThat(store.findPage(PageRequest.of(0, 10)).getContent())
                 .extracting(AuditEntry::sequence).containsExactly(2L, 1L); // newest first
 

@@ -3,6 +3,8 @@ package de.volantic.erp.security.infrastructure.persistence;
 import de.volantic.erp.security.AccessScope;
 import de.volantic.erp.security.application.port.out.SecurityWriteStore;
 import de.volantic.erp.security.domain.model.UserStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -22,9 +24,16 @@ import java.util.stream.Collectors;
  * old value, leaving it stale until the TTL. After-commit eviction avoids that window. When there is no
  * active transaction (e.g. tests) it evicts immediately. The {@link CacheManager} is optional so this
  * adapter also works in slices without a configured cache.
+ *
+ * <p>Eviction is <strong>fail-open</strong>, matching {@code CacheConfig}'s {@code CacheErrorHandler}:
+ * this is a manual cache access (not annotation-driven), so it does not go through that handler and must
+ * swallow cache/Redis errors itself. A Redis outage must never fail a security write — the entry's short
+ * TTL bounds the resulting staleness until the cache is reachable again.
  */
 @Component
 class SecurityWriteStoreAdapter implements SecurityWriteStore {
+
+    private static final Logger log = LoggerFactory.getLogger(SecurityWriteStoreAdapter.class);
 
     private final AppUserJpaRepository users;
     private final RoleJpaRepository roles;
@@ -108,8 +117,16 @@ class SecurityWriteStoreAdapter implements SecurityWriteStore {
             return;
         }
         Cache cache = manager.getCache(CacheNames.USER_PERMISSIONS);
-        if (cache != null) {
+        if (cache == null) {
+            return;
+        }
+        try {
             action.accept(cache);
+        } catch (RuntimeException cacheError) {
+            // Fail-open: a Redis outage must not fail the (already committed) security write. The short
+            // TTL on USER_PERMISSIONS bounds staleness until the cache is reachable again.
+            log.warn("authorization cache eviction failed [{}] — degrading to TTL: {}",
+                    CacheNames.USER_PERMISSIONS, cacheError.toString());
         }
     }
 

@@ -5,11 +5,13 @@ import de.volantic.erp.catalog.domain.model.Product;
 import java.math.BigDecimal;
 
 /** Response body representing a product (REST v1). No JPA entity ever leaves the api layer. */
-public record ProductResponse(String id, String sku, String name, BigDecimal priceAmount, String priceCurrency) {
+public record ProductResponse(String id, long version, String sku, String name,
+                              BigDecimal priceAmount, String priceCurrency) {
 
     static ProductResponse from(Product product) {
         return new ProductResponse(
                 product.id().value().toString(),
+                product.version() == null ? 0L : product.version(),
                 product.sku(),
                 product.name(),
                 product.listPrice().amount(),

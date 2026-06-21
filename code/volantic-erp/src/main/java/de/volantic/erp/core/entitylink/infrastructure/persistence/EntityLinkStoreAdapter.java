@@ -3,6 +3,7 @@ package de.volantic.erp.core.entitylink.infrastructure.persistence;
 import de.volantic.erp.core.entitylink.EntityLink;
 import de.volantic.erp.core.entitylink.EntityRef;
 import de.volantic.erp.core.entitylink.application.port.out.EntityLinkStore;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -22,10 +23,17 @@ class EntityLinkStoreAdapter implements EntityLinkStore {
         boolean exists = jpa.findByFromTypeAndFromIdAndToTypeAndToIdAndLinkType(
                 link.from().type(), link.from().id(),
                 link.to().type(), link.to().id(), link.linkType()).isPresent();
-        if (!exists) {
-            jpa.save(new EntityLinkEntity(
+        if (exists) {
+            return;
+        }
+        try {
+            jpa.saveAndFlush(new EntityLinkEntity(
                     link.from().type(), link.from().id(),
                     link.to().type(), link.to().id(), link.linkType()));
+        } catch (DataIntegrityViolationException concurrentInsert) {
+            // Check-then-act races with a concurrent (async outbox) insert of the same edge; the table's
+            // UNIQUE constraint is the source of truth and rejected the duplicate. Linking is idempotent,
+            // so a losing race is a success — swallow it rather than failing the listener.
         }
     }
 

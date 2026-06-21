@@ -37,6 +37,16 @@ class CustomerEntity extends AbstractEntity {
         this.email = email;
     }
 
+    /**
+     * Builds a detached entity carrying the expected optimistic-lock {@code version}, so a
+     * {@code save()} becomes a version-checked merge (lost-update protection) instead of a re-load.
+     */
+    static CustomerEntity forUpdate(UUID id, String customerNumber, String name, String email, long version) {
+        CustomerEntity entity = new CustomerEntity(id, customerNumber, name, email);
+        entity.markPersisted(version);
+        return entity;
+    }
+
     String customerNumber() {
         return customerNumber;
     }

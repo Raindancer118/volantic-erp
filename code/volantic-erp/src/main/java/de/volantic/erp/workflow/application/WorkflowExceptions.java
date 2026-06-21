@@ -25,4 +25,14 @@ public final class WorkflowExceptions {
             super("approval task not found or already completed: " + taskId);
         }
     }
+
+    /**
+     * The underlying workflow engine failed unexpectedly. Mapped to HTTP 503 — keeps vendor (Flowable)
+     * exceptions from leaking into the domain and REST layers.
+     */
+    public static final class EngineError extends RuntimeException {
+        public EngineError(String operation, Throwable cause) {
+            super("workflow engine failed during " + operation, cause);
+        }
+    }
 }

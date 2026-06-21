@@ -13,7 +13,10 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import org.springframework.dao.OptimisticLockingFailureException;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Persistence integration test for the customer adapter against a real PostgreSQL (Testcontainers):
@@ -74,6 +77,31 @@ class CustomerRepositoryIT {
         assertThat(reloaded.email()).isEqualTo("contact@acme.de");
         assertThat(reloaded.customerNumber()).isEqualTo("C-1001");
         assertThat(repository.findAll(org.springframework.data.domain.Pageable.unpaged()).getTotalElements()).isEqualTo(1);
+    }
+
+    @Test
+    void rejectsAStaleUpdateInsteadOfLosingTheConcurrentChange() {
+        Customer customer = Customer.create("C-LOCK", "Locked GmbH", null);
+        repository.save(customer);
+        em.flush();
+        em.clear();
+
+        // Two independent loads of the same row, both at the same version (simulating two requests).
+        Customer first = repository.findById(customer.id()).orElseThrow();
+        Customer second = repository.findById(customer.id()).orElseThrow();
+        assertThat(first.version()).isEqualTo(second.version());
+
+        // The first writer wins.
+        first.rename("Winner GmbH");
+        repository.save(first);
+        em.flush();
+
+        // The second writer holds a now-stale version — its update must be rejected, not silently applied.
+        second.rename("Loser GmbH");
+        assertThatThrownBy(() -> {
+            repository.save(second);
+            em.flush();
+        }).isInstanceOf(OptimisticLockingFailureException.class);
     }
 
     @Test

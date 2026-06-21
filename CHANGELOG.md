@@ -4,6 +4,66 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-21 `feat(crm,catalog)` (fe0acf9) — bulk create/delete für Customer, Supplier, Product (ADR-0006 §2 vollständig abgedeckt)
+  - Lücke geschlossen: LifecycleResourceHandler war nur für Contact/Address; jetzt alle 5 Stammdaten-Aggregate
+  - repository deleteById, service delete*/recreate* (neue :delete-Permission; recreate behält Original-id+Geschäftsschlüssel), je ein LifecycleResourceHandler
+  - per-Handler Unit-Tests + end-to-end IT (Customer bulk-create→revert löscht, bulk-delete→revert legt mit gleicher id+Nummer neu an), ChangeSetFlowIT 11/11 
+- 2026-06-21 `feat(changeset,sales)` (cfaea71) — bulk-post documents reversible by storno (ADR-0006 §2 — Beleg-Pfad geschlossen)
+  - neue SPI DocumentPostingHandler (post/storno) + ChangeOperation.POST → Kompensation via Storno (kein Delete)
+  - ChangeSetService.postDocuments LIVE-only, revert→storno
+  - sales InvoicePostingHandler über InvoiceService, REST /bulk-post
+  - Session postet bestehende Drafts per id (Mass-Fakturierung)
+  - end-to-end IT (2 Drafts bulk-posted, revert→beide CANCELLED via Storno) gegen echtes Postgres 
+- 2026-06-20 `feat(sales)` (01d6298) — invoice document (Beleg) with GoBD post + storno
+  - Invoice aggregate DRAFT->POSTED (gap-free number from core.numberrange, immutable)->CANCELLED; correction only via storno (credit doc in the same range, original never altered)
+  - InvoiceService create/post/cancel/get/list, @PreAuthorize sales.invoice:*, audit-trailed
+  - hexagonal + Flyway sales/V401 + REST /v1/sales/invoices
+  - domain/service/contract tests + end-to-end IT (consecutive numbering, posted immutability, storno) vs real Postgres 
+- 2026-06-20 `feat(changeset)` (104cca5) — four-eyes approval for Probemodus sessions (ADR-0006 §7)
+  - submit a Probemodus session for sign-off; reviewer approval applies it via async ApplicationModuleListener that impersonates the original requester (writes authorize against them, not the reviewer)
+  - AWAITING_APPROVAL status; request-approval REST
+  - end-to-end IT: reviewer without crm.customer:update still triggers apply, rejection discards 
+- 2026-06-20 `feat(workflow)` (63c806a) — public Approvals port + ApprovalDecided event (groundwork for four-eyes)
+  - string-typed inbound port at module root + decision event; decide() now @Transactional so the outbox listener fires 
+- 2026-06-20 `feat(changeset)` (86cd996) — filter-based mass-edit selection across all aggregates (ADR-0006 §5)
+  - mass edit can target 'all resources where field=value' not just an id list
+  - BulkEditHandler filterableFields()/selectIds(); BulkChange ids XOR filter; ChangeSetService resolves filter->ids via handler
+  - crm+catalog handlers filter through their @PreAuthorize'd read side (nullable-param JPQL)
+  - FieldNotFilterableException->422
+  - full-context filtered flow proven in ChangeSetFlowIT 
+- 2026-06-20 `fix(crm,catalog)` (5d053bd) — not-found read must not mark caller's transaction rollback-only
+  - changeset handlers probe existence via read getters inside a wider tx; the thrown NotFound marked the shared tx rollback-only, failing a later preview commit with UnexpectedRollbackException
+  - read getters now noRollbackFor their NotFound 
+- 2026-06-20 `fix(security)` (bcacc7e) — fail-open authorization-cache eviction
+  - manual cache.evictIfPresent bypassed CacheConfig's CacheErrorHandler, so a Redis outage failed every security write (provision/role/assign) despite the documented fail-open contract
+  - swallow cache errors, bounded by TTL
+  - regression test 
+- 2026-06-20 `feat(changeset)` (8ef65b8) — read/list API for sessions (overview + detail)
+  - ChangeSetStore.findByActor (paged, newest first) + service getSession/listSessions (owned, current actor)
+  - GET /v1/changeset/sessions + /{id} with summary/detail DTOs and a derived 'revertible' flag
+  - contract + ownership + Testcontainers filtering tests 
+- 2026-06-20 `feat(changeset)` (85ba538) — concrete core.revision handlers for crm + catalog (M5)
+  - engine now works end-to-end instead of UnknownResourceTypeException for every type
+  - AbstractFieldMapHandler shared template (capture/partial-overlay apply/UPDATE compensation)
+  - crm Customer/Supplier/Contact/Address + catalog Product handlers, all writes through @PreAuthorize'd domain services
+  - bulk CREATE/DELETE rejected loudly (ADR-0006 scope)
+  - base + per-aggregate field-wiring tests 
+- 2026-06-20 `refactor(crm)` (1a47ccd) — reuse EmailAddresses in Supplier (remove duplicate, weaker email check)
+  - Supplier used a weaker contains('@') check that drifted from Customer/Contact's shared EmailAddresses.normalize
+  - now rejects malformed e.g. a@b consistently 
+- 2026-06-20 `feat(changeset)` (7917d37) — REST v1 API for sessions + bulk preview/apply (M4)
+  - /v1/changeset: open LIVE/Probemodus session, dry-run preview, apply within session, commit/discard/revert
+  - ChangeSetExceptionHandler → RFC 7807 (404/403/422/409/400)
+  - test-first @WebMvcTest contract pins status codes, Location header and JSON shapes 
+- 2026-06-19 `fix(hardening)` (dbbcd7f) — remediate audit findings (Findings.md)
+  - audit hash length-prefixed against delimiter injection; ChangeSet ownership check (IDOR); ThreadLocal SecureRandom; UTC timestamps; Modulith outbox cleanup+republish; JWT aud validation; paged verifyIntegrity (OOM); circular-BOM detection; capture-at-commit revertable Probemodus; scale-insensitive Quantity equality; ISO country + stricter email; aggregate equals/hashCode 
+- 2026-06-19 `feat(changeset)` (3942bee) — application service + session persistence (M2)
+  - ChangeSetService: mass edit / Probemodus commit / Rollback Engine revert via core.revision handlers + AuditTrail
+  - ChangeSetStore JPA adapter (ops as JSON), Flyway V301
+  - test-first ChangeSetServiceTest + Testcontainers ChangeSetStoreIT 
+- 2026-06-19 `feat(changeset)` (f027171) — reversible change-set domain core (ADR-0006)
+  - Mass edits, Probemodus (deferred apply) and Rollback Engine (forward-only GoBD-safe reversal)
+  - core.revision SPI + persistence-free ChangeSet aggregate (LIVE/DEFERRED) 
 - 2026-06-09 `docs(status)` (d1b044d) — reconcile project status with implemented M0 foundations
   - Findings.md: original audit bleibt als Snapshot, neue dated 'Stand der Behebung'-Sektion mappt jedes Finding auf den behebenden PR und führt den offenen Restumfang (Cockpit/Search, API-Gateway, Last-/Latenz-CI-Gate) ehrlich auf
   - README.md: tatsächlich existierende Module (crm, catalog, audit, workflow) gelistet und die nie genutzte 'internal'-Konvention durch die reale hexagonale Schichtung ersetzt 
