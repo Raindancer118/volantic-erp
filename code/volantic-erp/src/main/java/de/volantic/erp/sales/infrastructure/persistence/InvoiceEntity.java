@@ -30,6 +30,9 @@ class InvoiceEntity extends AbstractEntity {
     @Column(name = "customer_id", nullable = false, updatable = false)
     private UUID customerId;
 
+    @Column(name = "org_unit_id", nullable = false, updatable = false)
+    private UUID orgUnitId;
+
     @Column(name = "currency", nullable = false, updatable = false, length = 3)
     private String currency;
 
@@ -59,6 +62,7 @@ class InvoiceEntity extends AbstractEntity {
     private InvoiceEntity(Invoice invoice) {
         super(invoice.id().value());
         this.customerId = invoice.customerId();
+        this.orgUnitId = invoice.orgUnitId();
         this.currency = invoice.currency().getCurrencyCode();
         this.stornoOf = invoice.stornoOf() == null ? null : invoice.stornoOf().value();
         for (InvoiceLine line : invoice.lines()) {
@@ -91,7 +95,7 @@ class InvoiceEntity extends AbstractEntity {
         List<InvoiceLine> domainLines = lines.stream()
                 .map(row -> new InvoiceLine(row.description(), row.quantity(), Money.of(row.unitPriceAmount(), cur)))
                 .toList();
-        return Invoice.reconstitute(new InvoiceId(getId()), getVersion(), customerId, cur, domainLines,
+        return Invoice.reconstitute(new InvoiceId(getId()), getVersion(), customerId, orgUnitId, cur, domainLines,
                 stornoOf == null ? null : new InvoiceId(stornoOf), status, documentNumber, issueDate,
                 cancelledBy == null ? null : new InvoiceId(cancelledBy));
     }

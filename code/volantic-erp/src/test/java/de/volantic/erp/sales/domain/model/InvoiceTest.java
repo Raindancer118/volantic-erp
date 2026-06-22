@@ -15,13 +15,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class InvoiceTest {
 
     private static final Currency EUR = Currency.getInstance("EUR");
+    private static final UUID ORG_UNIT = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
     private static InvoiceLine line(String desc, String qty, String price) {
         return new InvoiceLine(desc, new BigDecimal(qty), Money.of(price, "EUR"));
     }
 
     private static Invoice draft() {
-        return Invoice.createDraft(UUID.randomUUID(), EUR, List.of(line("Widget", "2", "10.00")));
+        return Invoice.createDraft(ORG_UNIT, UUID.randomUUID(), EUR, List.of(line("Widget", "2", "10.00")));
     }
 
     @Test
@@ -31,13 +32,14 @@ class InvoiceTest {
         assertThat(invoice.status()).isEqualTo(InvoiceStatus.DRAFT);
         assertThat(invoice.documentNumber()).isNull();
         assertThat(invoice.total()).isEqualTo(Money.of("20.00", "EUR"));
+        assertThat(invoice.orgUnitId()).isEqualTo(ORG_UNIT);
     }
 
     @Test
     void rejectsEmptyLinesAndForeignCurrencyLines() {
-        assertThatThrownBy(() -> Invoice.createDraft(UUID.randomUUID(), EUR, List.of()))
+        assertThatThrownBy(() -> Invoice.createDraft(ORG_UNIT, UUID.randomUUID(), EUR, List.of()))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> Invoice.createDraft(UUID.randomUUID(), EUR,
+        assertThatThrownBy(() -> Invoice.createDraft(ORG_UNIT, UUID.randomUUID(), EUR,
                 List.of(new InvoiceLine("X", BigDecimal.ONE, Money.of("1.00", "USD")))))
                 .isInstanceOf(IllegalArgumentException.class);
     }
@@ -64,6 +66,18 @@ class InvoiceTest {
         assertThat(storno.stornoOf()).isEqualTo(original.id());
         assertThat(storno.status()).isEqualTo(InvoiceStatus.DRAFT);
         assertThat(storno.total()).isEqualTo(Money.of("-20.00", "EUR")); // negated
+    }
+
+    @Test
+    void stornoInheritsOrgUnitIdFromOriginal() {
+        UUID orgUnit = UUID.randomUUID();
+        Invoice original = Invoice.createDraft(orgUnit, UUID.randomUUID(), EUR,
+                List.of(line("Widget", "1", "50.00")));
+        original.post("RE-000010");
+
+        Invoice storno = Invoice.storno(original);
+
+        assertThat(storno.orgUnitId()).isEqualTo(orgUnit);
     }
 
     @Test

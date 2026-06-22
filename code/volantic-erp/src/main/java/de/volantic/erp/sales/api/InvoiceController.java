@@ -45,7 +45,7 @@ class InvoiceController {
         List<InvoiceLine> lines = request.lines().stream()
                 .map(line -> new InvoiceLine(line.description(), line.quantity(), Money.of(line.unitPrice(), currency)))
                 .toList();
-        Invoice created = invoices.createDraft(request.customerId(), request.currency(), lines);
+        Invoice created = invoices.createDraft(request.orgUnitId(), request.customerId(), request.currency(), lines);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}").buildAndExpand(created.id().value()).toUri();
         return ResponseEntity.created(location).body(InvoiceResponse.from(created));

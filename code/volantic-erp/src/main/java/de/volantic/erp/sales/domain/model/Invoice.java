@@ -5,6 +5,7 @@ import de.volantic.erp.core.measure.Money;
 import java.time.LocalDate;
 import java.util.Currency;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * A sales invoice — the {@code sales} aggregate root and the canonical "Beleg" (DB architecture §5.1,
@@ -21,12 +22,16 @@ import java.util.List;
  *   <li>A storno is itself an invoice created via {@link #storno(Invoice)}: a negated copy of the
  *       cancelled invoice that posts into the <em>same</em> number range.</li>
  * </ul>
+ *
+ * <p>Org-unit scoping (ADR-0007): each invoice is owned by exactly one org unit ({@link #orgUnitId()}),
+ * supplied at draft creation and immutable thereafter. A storno inherits the org unit of the original.
  */
 public final class Invoice {
 
     private final InvoiceId id;
     private final Long version;
-    private final java.util.UUID customerId;
+    private final UUID customerId;
+    private final UUID orgUnitId;
     private final Currency currency;
     private final List<InvoiceLine> lines;
     /** For a storno document, the invoice it cancels; otherwise {@code null}. */
@@ -37,12 +42,13 @@ public final class Invoice {
     /** For a cancelled invoice, the storno document that cancelled it; otherwise {@code null}. */
     private InvoiceId cancelledBy;
 
-    private Invoice(InvoiceId id, Long version, java.util.UUID customerId, Currency currency,
+    private Invoice(InvoiceId id, Long version, UUID customerId, UUID orgUnitId, Currency currency,
                     List<InvoiceLine> lines, InvoiceId stornoOf, InvoiceStatus status,
                     String documentNumber, LocalDate issueDate, InvoiceId cancelledBy) {
         this.id = requireNonNull(id, "id");
         this.version = version;
         this.customerId = requireNonNull(customerId, "customerId");
+        this.orgUnitId = requireNonNull(orgUnitId, "orgUnitId");
         this.currency = requireNonNull(currency, "currency");
         if (lines == null || lines.isEmpty()) {
             throw new IllegalArgumentException("an invoice must have at least one line");
@@ -58,17 +64,21 @@ public final class Invoice {
         this.cancelledBy = cancelledBy;
     }
 
-    /** Creates a new editable draft invoice for a customer. */
-    public static Invoice createDraft(java.util.UUID customerId, Currency currency, List<InvoiceLine> lines) {
-        return new Invoice(InvoiceId.newId(), null, customerId, currency, lines, null,
+    /**
+     * Creates a new editable draft invoice for a customer, issued by the given org unit (ADR-0007).
+     * {@code orgUnitId} is immutable and must not be {@code null}.
+     */
+    public static Invoice createDraft(UUID orgUnitId, UUID customerId, Currency currency, List<InvoiceLine> lines) {
+        return new Invoice(InvoiceId.newId(), null, customerId, orgUnitId, currency, lines, null,
                 InvoiceStatus.DRAFT, null, null, null);
     }
 
     /** Re-creates an invoice from persisted state (used by the persistence adapter). */
-    public static Invoice reconstitute(InvoiceId id, long version, java.util.UUID customerId, Currency currency,
-                                       List<InvoiceLine> lines, InvoiceId stornoOf, InvoiceStatus status,
-                                       String documentNumber, LocalDate issueDate, InvoiceId cancelledBy) {
-        return new Invoice(id, version, customerId, currency, lines, stornoOf, status,
+    public static Invoice reconstitute(InvoiceId id, long version, UUID customerId, UUID orgUnitId,
+                                       Currency currency, List<InvoiceLine> lines, InvoiceId stornoOf,
+                                       InvoiceStatus status, String documentNumber, LocalDate issueDate,
+                                       InvoiceId cancelledBy) {
+        return new Invoice(id, version, customerId, orgUnitId, currency, lines, stornoOf, status,
                 documentNumber, issueDate, cancelledBy);
     }
 
@@ -102,8 +112,9 @@ public final class Invoice {
         List<InvoiceLine> stornoLines = original.lines.stream()
                 .map(line -> new InvoiceLine("Storno: " + line.description(), line.quantity(), line.unitPrice()))
                 .toList();
-        return new Invoice(InvoiceId.newId(), null, original.customerId, original.currency, stornoLines,
-                original.id, InvoiceStatus.DRAFT, null, null, null);
+        // orgUnitId is inherited from the original — a storno belongs to the same unit (ADR-0007).
+        return new Invoice(InvoiceId.newId(), null, original.customerId, original.orgUnitId, original.currency,
+                stornoLines, original.id, InvoiceStatus.DRAFT, null, null, null);
     }
 
     /** Marks this posted invoice cancelled by the given storno document. Only valid for a {@code POSTED}. */
@@ -139,8 +150,13 @@ public final class Invoice {
         return version;
     }
 
-    public java.util.UUID customerId() {
+    public UUID customerId() {
         return customerId;
+    }
+
+    /** The org unit that issued this invoice; immutable and never {@code null} (ADR-0007). */
+    public UUID orgUnitId() {
+        return orgUnitId;
     }
 
     public Currency currency() {
