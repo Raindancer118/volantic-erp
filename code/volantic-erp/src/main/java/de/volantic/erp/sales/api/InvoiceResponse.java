@@ -11,6 +11,7 @@ import java.util.List;
 public record InvoiceResponse(
         String id,
         long version,
+        String orgUnitId,
         String customerId,
         String currency,
         String status,
@@ -31,6 +32,7 @@ public record InvoiceResponse(
         return new InvoiceResponse(
                 invoice.id().value().toString(),
                 invoice.version() == null ? 0L : invoice.version(),
+                invoice.orgUnitId().toString(),
                 invoice.customerId().toString(),
                 invoice.currency().getCurrencyCode(),
                 invoice.status().name(),

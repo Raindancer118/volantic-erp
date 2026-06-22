@@ -11,6 +11,7 @@ import java.util.UUID;
 
 /** Request body for creating a draft invoice (REST v1). */
 public record CreateInvoiceRequest(
+        @NotNull UUID orgUnitId,
         @NotNull UUID customerId,
         @NotNull @Size(min = 3, max = 3) String currency,
         @NotEmpty @Valid List<Line> lines) {

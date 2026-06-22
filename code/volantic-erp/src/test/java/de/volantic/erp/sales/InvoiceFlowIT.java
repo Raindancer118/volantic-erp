@@ -41,6 +41,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class InvoiceFlowIT {
 
     private static final String ACTOR = "sales-clerk";
+    private static final java.util.UUID ORG_UNIT =
+            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001");
 
     @Container
     @ServiceConnection
@@ -78,7 +80,7 @@ class InvoiceFlowIT {
     }
 
     private InvoiceId newDraft(String desc, String qty, String price) {
-        Invoice draft = invoices.createDraft(UUID.randomUUID(), "EUR",
+        Invoice draft = invoices.createDraft(ORG_UNIT, UUID.randomUUID(), "EUR",
                 List.of(new InvoiceLine(desc, new BigDecimal(qty), Money.of(price, "EUR"))));
         return draft.id();
     }
