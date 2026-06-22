@@ -32,7 +32,9 @@ class OrgUnitHierarchyAdapter implements OrgUnitHierarchy {
         if (orgUnitId == null) {
             return List.of();
         }
-        Map<UUID, UUID> parentOf = parentMap();
+        // Resolve against a single tree snapshot per call (no second cache.load(), so no
+        // time-of-check/time-of-use window if the tree is evicted mid-request).
+        Map<UUID, UUID> parentOf = parentMap(cache.load().edges());
         if (!parentOf.containsKey(orgUnitId)) {
             return List.of(); // unknown unit
         }
@@ -51,7 +53,7 @@ class OrgUnitHierarchyAdapter implements OrgUnitHierarchy {
         if (orgUnitIds == null || orgUnitIds.isEmpty()) {
             return Set.of();
         }
-        Map<UUID, List<UUID>> childrenOf = childrenMap();
+        Map<UUID, List<UUID>> childrenOf = childrenMap(cache.load().edges());
         Set<UUID> result = new HashSet<>();
         Deque<UUID> queue = new ArrayDeque<>(orgUnitIds);
         while (!queue.isEmpty()) {
@@ -64,17 +66,17 @@ class OrgUnitHierarchyAdapter implements OrgUnitHierarchy {
         return result;
     }
 
-    private Map<UUID, UUID> parentMap() {
+    private static Map<UUID, UUID> parentMap(List<CachedOrgTree.Edge> edges) {
         Map<UUID, UUID> parentOf = new HashMap<>();
-        for (CachedOrgTree.Edge edge : cache.load().edges()) {
+        for (CachedOrgTree.Edge edge : edges) {
             parentOf.put(edge.id(), edge.parentId());
         }
         return parentOf;
     }
 
-    private Map<UUID, List<UUID>> childrenMap() {
+    private static Map<UUID, List<UUID>> childrenMap(List<CachedOrgTree.Edge> edges) {
         Map<UUID, List<UUID>> childrenOf = new HashMap<>();
-        for (CachedOrgTree.Edge edge : cache.load().edges()) {
+        for (CachedOrgTree.Edge edge : edges) {
             if (edge.parentId() != null) {
                 childrenOf.computeIfAbsent(edge.parentId(), k -> new ArrayList<>()).add(edge.id());
             }
