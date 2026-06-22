@@ -32,6 +32,24 @@ public final class RoleAssignment {
         return scope.equals(requested);
     }
 
+    /** Is this a global (unrestricted) assignment? */
+    boolean isGlobal() {
+        return scope.isGlobal();
+    }
+
+    /**
+     * The org-unit id this assignment is scoped to, but only when it grants the given permission via an
+     * {@code ORG_UNIT} scope; {@code null} for a global assignment, a non-org-unit scope, or a role that
+     * does not grant the permission. Used to collect the units a user may act in (hierarchy is expanded
+     * to descendants in the authorization layer, not here).
+     */
+    java.util.UUID orgUnitGranting(String permission) {
+        if (scope.isOrgUnit() && role.grants(permission)) {
+            return scope.id();
+        }
+        return null;
+    }
+
     Role role() {
         return role;
     }

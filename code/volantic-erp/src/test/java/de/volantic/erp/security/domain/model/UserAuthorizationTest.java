@@ -67,4 +67,37 @@ class UserAuthorizationTest {
         assertThat(user.isPermitted("hr.salary:read", AccessScope.GLOBAL)).isFalse();
         assertThat(user.permissionKeys()).isEmpty();
     }
+
+    // --- Scope queries backing org-unit hierarchy resolution (ADR-0007) ---
+
+    @Test
+    void isPermittedGloballyOnlyForAGlobalGrant() {
+        assertThat(userWith(AccessScope.GLOBAL, "crm.customer:read").isPermittedGlobally("crm.customer:read")).isTrue();
+        assertThat(userWith(AccessScope.orgUnit(UuidV7.randomUuid()), "crm.customer:read")
+                .isPermittedGlobally("crm.customer:read")).isFalse();
+    }
+
+    @Test
+    void orgUnitsGrantingReturnsTheScopedUnitsForThePermission() {
+        UUID unit = UuidV7.randomUuid();
+        User user = userWith(AccessScope.orgUnit(unit), "crm.customer:read");
+
+        assertThat(user.orgUnitsGranting("crm.customer:read")).containsExactly(unit);
+        assertThat(user.orgUnitsGranting("crm.customer:update")).isEmpty();
+    }
+
+    @Test
+    void globalGrantContributesNoOrgUnits() {
+        User user = userWith(AccessScope.GLOBAL, "crm.customer:read");
+
+        assertThat(user.orgUnitsGranting("crm.customer:read")).isEmpty();
+    }
+
+    @Test
+    void disabledUserGrantsNoOrgUnits() {
+        User user = userWith(UserStatus.DISABLED, AccessScope.orgUnit(UuidV7.randomUuid()), "crm.customer:read");
+
+        assertThat(user.orgUnitsGranting("crm.customer:read")).isEmpty();
+        assertThat(user.isPermittedGlobally("crm.customer:read")).isFalse();
+    }
 }

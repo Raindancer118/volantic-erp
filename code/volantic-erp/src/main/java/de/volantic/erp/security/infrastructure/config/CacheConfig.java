@@ -2,6 +2,7 @@ package de.volantic.erp.security.infrastructure.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.volantic.erp.security.infrastructure.persistence.CacheNames;
+import de.volantic.erp.security.infrastructure.persistence.CachedOrgTree;
 import de.volantic.erp.security.infrastructure.persistence.CachedUser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,18 +33,26 @@ class CacheConfig implements CachingConfigurer {
 
     private static final Logger log = LoggerFactory.getLogger(CacheConfig.class);
     private static final Duration USER_PERMISSIONS_TTL = Duration.ofMinutes(5);
+    private static final Duration ORG_TREE_TTL = Duration.ofMinutes(10);
 
     @Bean
     RedisCacheManagerBuilderCustomizer securityCacheCustomizer(ObjectMapper objectMapper) {
-        var serializer = new Jackson2JsonRedisSerializer<>(objectMapper, CachedUser.class);
-        return builder -> builder.withCacheConfiguration(
-                CacheNames.USER_PERMISSIONS,
-                RedisCacheConfiguration.defaultCacheConfig()
-                        .entryTtl(USER_PERMISSIONS_TTL)
-                        // Null values ARE cached (negative caching) to shield the DB from repeated
-                        // lookups of valid-but-unmirrored subjects; staleness is bounded by the TTL
-                        // and cleared by write-side eviction.
-                        .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(serializer)));
+        var userSerializer = new Jackson2JsonRedisSerializer<>(objectMapper, CachedUser.class);
+        var treeSerializer = new Jackson2JsonRedisSerializer<>(objectMapper, CachedOrgTree.class);
+        return builder -> builder
+                .withCacheConfiguration(
+                        CacheNames.USER_PERMISSIONS,
+                        RedisCacheConfiguration.defaultCacheConfig()
+                                .entryTtl(USER_PERMISSIONS_TTL)
+                                // Null values ARE cached (negative caching) to shield the DB from repeated
+                                // lookups of valid-but-unmirrored subjects; staleness is bounded by the TTL
+                                // and cleared by write-side eviction.
+                                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(userSerializer)))
+                .withCacheConfiguration(
+                        CacheNames.ORG_TREE,
+                        RedisCacheConfiguration.defaultCacheConfig()
+                                .entryTtl(ORG_TREE_TTL)
+                                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(treeSerializer)));
     }
 
     @Override

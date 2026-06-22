@@ -3,7 +3,9 @@ package de.volantic.erp.security.domain.model;
 import de.volantic.erp.security.AccessScope;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -29,6 +31,31 @@ public final class User {
      */
     public boolean isPermitted(String permission, AccessScope scope) {
         return isActive() && roleAssignments.stream().anyMatch(a -> a.grants(permission, scope));
+    }
+
+    /**
+     * Has this user a <em>global</em> (unrestricted) grant of the permission? True only for a global
+     * role assignment; a purely org-unit-scoped grant returns {@code false}. Used by the authorization
+     * layer to decide whether a list request is unrestricted or must be filtered to permitted units.
+     */
+    public boolean isPermittedGlobally(String permission) {
+        return isActive() && roleAssignments.stream()
+                .anyMatch(a -> a.isGlobal() && a.role().grants(permission));
+    }
+
+    /**
+     * The set of organizational-unit ids the user holds the permission in via an {@code ORG_UNIT}-scoped
+     * assignment (before hierarchy/descendant expansion, which happens in the authorization layer).
+     * Empty if the user is disabled or holds the permission only globally / not at all.
+     */
+    public Set<UUID> orgUnitsGranting(String permission) {
+        if (!isActive()) {
+            return Set.of();
+        }
+        return roleAssignments.stream()
+                .map(a -> a.orgUnitGranting(permission))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
     }
 
     /** All permission keys across all roles (empty if the user is disabled). */
