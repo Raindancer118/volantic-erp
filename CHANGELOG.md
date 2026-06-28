@@ -4,6 +4,16 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-28 `feat(crm)` (b06afca) — inherited org-unit scope for addresses and contacts (ADR-0007)
+  - Address/Contact have no own unit — they inherit the owning customer/supplier's unit via the new PartnerOrgUnits resolver
+  - no schema or REST change; completes the CRM org-scope rollout 
+- 2026-06-28 `feat(crm)` (1bd0e80) — org-unit scoped access control for suppliers (ADR-0007)
+  - Supplier carries an immutable orgUnitId; Flyway crm/V106 backfills the seeded root unit
+  - same ScopeEnforcer enforcement as Customer 
+- 2026-06-28 `feat(crm)` (4bca4c1) — org-unit scoped access control for customers (ADR-0007)
+  - Customer carries an immutable orgUnitId; Flyway crm/V105 backfills the seeded root unit
+  - ScopeEnforcer checks create on the requested unit and get/update/delete on the customer's own unit; list filtered to permittedOrgUnits
+  - global grant still covers every unit 
 - 2026-06-21 `feat(crm,catalog)` (fe0acf9) — bulk create/delete für Customer, Supplier, Product (ADR-0006 §2 vollständig abgedeckt)
   - Lücke geschlossen: LifecycleResourceHandler war nur für Contact/Address; jetzt alle 5 Stammdaten-Aggregate
   - repository deleteById, service delete*/recreate* (neue :delete-Permission; recreate behält Original-id+Geschäftsschlüssel), je ein LifecycleResourceHandler
