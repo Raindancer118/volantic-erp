@@ -9,6 +9,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 /** Outbound adapter for {@link SupplierRepository}: maps between domain {@link Supplier} and JPA. */
 @Component
@@ -24,8 +26,9 @@ class SupplierRepositoryAdapter implements SupplierRepository {
     public Supplier save(Supplier supplier) {
         // Versioned aggregate → version-checked merge (optimistic locking); new → insert. No re-fetch.
         SupplierEntity entity = supplier.version() == null
-                ? new SupplierEntity(supplier.id().value(), supplier.supplierNumber(), supplier.name(), supplier.email())
-                : SupplierEntity.forUpdate(supplier.id().value(), supplier.supplierNumber(),
+                ? new SupplierEntity(supplier.id().value(), supplier.orgUnitId(), supplier.supplierNumber(),
+                        supplier.name(), supplier.email())
+                : SupplierEntity.forUpdate(supplier.id().value(), supplier.orgUnitId(), supplier.supplierNumber(),
                         supplier.name(), supplier.email(), supplier.version());
         return toDomain(jpa.save(entity));
     }
@@ -46,6 +49,11 @@ class SupplierRepositoryAdapter implements SupplierRepository {
     }
 
     @Override
+    public Page<Supplier> findAllInOrgUnits(Set<UUID> orgUnitIds, Pageable pageable) {
+        return jpa.findAllByOrgUnitIdIn(orgUnitIds, pageable).map(this::toDomain);
+    }
+
+    @Override
     public List<SupplierId> findIds(String name, String email) {
         return jpa.findIdsByFilter(name, email).stream().map(SupplierId::new).toList();
     }
@@ -61,6 +69,6 @@ class SupplierRepositoryAdapter implements SupplierRepository {
 
     private Supplier toDomain(SupplierEntity entity) {
         return Supplier.reconstitute(new SupplierId(entity.getId()), entity.getVersion(),
-                entity.supplierNumber(), entity.name(), entity.email());
+                entity.orgUnitId(), entity.supplierNumber(), entity.name(), entity.email());
     }
 }

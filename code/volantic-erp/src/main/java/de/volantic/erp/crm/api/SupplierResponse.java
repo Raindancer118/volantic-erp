@@ -3,12 +3,14 @@ package de.volantic.erp.crm.api;
 import de.volantic.erp.crm.domain.model.Supplier;
 
 /** Response body representing a supplier (REST v1). */
-public record SupplierResponse(String id, long version, String supplierNumber, String name, String email) {
+public record SupplierResponse(String id, long version, String orgUnitId, String supplierNumber,
+                               String name, String email) {
 
     static SupplierResponse from(Supplier supplier) {
         return new SupplierResponse(
                 supplier.id().value().toString(),
                 supplier.version() == null ? 0L : supplier.version(),
+                supplier.orgUnitId().toString(),
                 supplier.supplierNumber(),
                 supplier.name(),
                 supplier.email());
