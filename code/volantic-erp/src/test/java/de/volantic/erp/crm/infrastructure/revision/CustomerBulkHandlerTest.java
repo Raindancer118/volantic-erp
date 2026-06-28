@@ -37,7 +37,8 @@ class CustomerBulkHandlerTest {
     void captureSerializesNameAndEmail() {
         UUID id = UUID.randomUUID();
         when(customers.getCustomer(new CustomerId(id)))
-                .thenReturn(Customer.reconstitute(new CustomerId(id), "C-1", "Acme", "info@acme.de"));
+                .thenReturn(Customer.reconstitute(new CustomerId(id),
+                        UUID.fromString("00000000-0000-0000-0000-000000000001"), "C-1", "Acme", "info@acme.de"));
 
         assertThat(handler.capture(id)).contains("\"name\":\"Acme\"").contains("\"email\":\"info@acme.de\"");
     }
@@ -54,7 +55,8 @@ class CustomerBulkHandlerTest {
     void applyChangePreservesUntouchedEmail() {
         UUID id = UUID.randomUUID();
         when(customers.getCustomer(new CustomerId(id)))
-                .thenReturn(Customer.reconstitute(new CustomerId(id), "C-1", "Acme", "info@acme.de"));
+                .thenReturn(Customer.reconstitute(new CustomerId(id),
+                        UUID.fromString("00000000-0000-0000-0000-000000000001"), "C-1", "Acme", "info@acme.de"));
 
         handler.applyChange(id, Map.of("name", "Acme Corp"));
 

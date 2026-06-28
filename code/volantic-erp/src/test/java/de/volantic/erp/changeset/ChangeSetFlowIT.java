@@ -65,6 +65,8 @@ class ChangeSetFlowIT {
     private static final String TYPE = "crm.customer";
     private static final String ACTOR = "changeset-tester";
     private static final String REVIEWER = "approval-reviewer-bob";
+    /** The seeded root org unit (security/V004); the actor holds a GLOBAL grant, so it covers any unit. */
+    private static final UUID ROOT = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
     @Container
     @ServiceConnection
@@ -127,7 +129,7 @@ class ChangeSetFlowIT {
     }
 
     private CustomerId newCustomer(String number, String name, String email) {
-        return customers.createCustomer(number, name, email).id();
+        return customers.createCustomer(ROOT, number, name, email).id();
     }
 
     private String nameOf(CustomerId id) {
@@ -205,8 +207,8 @@ class ChangeSetFlowIT {
     void customerBulkCreateIsReversedByDeleting() {
         ChangeSetId session = changeSets.beginLive();
         List<UUID> created = changeSets.createBulk(session, new BulkCreate("crm.customer", List.of(
-                Map.of("customerNumber", "C-BULK-1", "name", "Alpha", "email", "a@acme.de"),
-                Map.of("customerNumber", "C-BULK-2", "name", "Beta", "email", "b@acme.de"))));
+                Map.of("orgUnitId", ROOT.toString(), "customerNumber", "C-BULK-1", "name", "Alpha", "email", "a@acme.de"),
+                Map.of("orgUnitId", ROOT.toString(), "customerNumber", "C-BULK-2", "name", "Beta", "email", "b@acme.de"))));
 
         assertThat(created).hasSize(2);
         assertThat(customers.getCustomer(new CustomerId(created.get(0))).name()).isEqualTo("Alpha");

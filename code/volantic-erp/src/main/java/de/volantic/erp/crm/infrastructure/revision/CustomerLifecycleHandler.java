@@ -26,6 +26,7 @@ class CustomerLifecycleHandler implements LifecycleResourceHandler {
     private static final TypeReference<LinkedHashMap<String, String>> MAP = new TypeReference<>() {
     };
     private static final String NUMBER = "customerNumber";
+    private static final String ORG_UNIT = "orgUnitId";
     private static final String NAME = "name";
     private static final String EMAIL = "email";
 
@@ -44,7 +45,8 @@ class CustomerLifecycleHandler implements LifecycleResourceHandler {
 
     @Override
     public UUID create(Map<String, String> data) {
-        return customers.createCustomer(data.get(NUMBER), data.get(NAME), data.get(EMAIL)).id().value();
+        return customers.createCustomer(UUID.fromString(data.get(ORG_UNIT)), data.get(NUMBER),
+                data.get(NAME), data.get(EMAIL)).id().value();
     }
 
     @Override
@@ -57,6 +59,7 @@ class CustomerLifecycleHandler implements LifecycleResourceHandler {
         }
         Map<String, String> fields = new LinkedHashMap<>();
         fields.put(NUMBER, customer.customerNumber());
+        fields.put(ORG_UNIT, customer.orgUnitId().toString());
         fields.put(NAME, customer.name());
         fields.put(EMAIL, customer.email());
         return serialize(fields);
@@ -70,7 +73,8 @@ class CustomerLifecycleHandler implements LifecycleResourceHandler {
     @Override
     public void recreate(UUID id, String snapshot) {
         Map<String, String> data = deserialize(snapshot);
-        customers.recreateCustomer(new CustomerId(id), data.get(NUMBER), data.get(NAME), data.get(EMAIL));
+        customers.recreateCustomer(new CustomerId(id), UUID.fromString(data.get(ORG_UNIT)), data.get(NUMBER),
+                data.get(NAME), data.get(EMAIL));
     }
 
     private String serialize(Map<String, String> fields) {

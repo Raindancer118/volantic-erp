@@ -9,6 +9,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Outbound adapter for {@link CustomerRepository}: maps between the pure domain {@link Customer} and the
@@ -31,8 +33,9 @@ class CustomerRepositoryAdapter implements CustomerRepository {
         // load the latest row version and discard the caller's expected version, reopening the
         // lost-update window the @Version field exists to close.
         CustomerEntity entity = customer.version() == null
-                ? new CustomerEntity(customer.id().value(), customer.customerNumber(), customer.name(), customer.email())
-                : CustomerEntity.forUpdate(customer.id().value(), customer.customerNumber(),
+                ? new CustomerEntity(customer.id().value(), customer.orgUnitId(), customer.customerNumber(),
+                        customer.name(), customer.email())
+                : CustomerEntity.forUpdate(customer.id().value(), customer.orgUnitId(), customer.customerNumber(),
                         customer.name(), customer.email(), customer.version());
         return toDomain(jpa.save(entity));
     }
@@ -53,6 +56,11 @@ class CustomerRepositoryAdapter implements CustomerRepository {
     }
 
     @Override
+    public Page<Customer> findAllInOrgUnits(Set<UUID> orgUnitIds, Pageable pageable) {
+        return jpa.findAllByOrgUnitIdIn(orgUnitIds, pageable).map(this::toDomain);
+    }
+
+    @Override
     public List<CustomerId> findIds(String name, String email) {
         return jpa.findIdsByFilter(name, email).stream().map(CustomerId::new).toList();
     }
@@ -68,6 +76,6 @@ class CustomerRepositoryAdapter implements CustomerRepository {
 
     private Customer toDomain(CustomerEntity entity) {
         return Customer.reconstitute(new CustomerId(entity.getId()), entity.getVersion(),
-                entity.customerNumber(), entity.name(), entity.email());
+                entity.orgUnitId(), entity.customerNumber(), entity.name(), entity.email());
     }
 }

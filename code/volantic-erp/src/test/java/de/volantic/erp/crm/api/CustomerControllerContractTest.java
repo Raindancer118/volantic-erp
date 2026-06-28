@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.dao.OptimisticLockingFailureException;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -37,6 +38,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(addFilters = false)
 class CustomerControllerContractTest {
 
+    private static final UUID ORG = UUID.fromString("00000000-0000-0000-0000-000000000001");
+
     @Autowired
     private MockMvc mvc;
 
@@ -45,15 +48,18 @@ class CustomerControllerContractTest {
 
     @Test
     void createReturns201WithLocationAndBody() throws Exception {
-        Customer created = Customer.create("C-1001", "ACME GmbH", "info@acme.de");
-        when(customerService.createCustomer("C-1001", "ACME GmbH", "info@acme.de")).thenReturn(created);
+        Customer created = Customer.create(ORG, "C-1001", "ACME GmbH", "info@acme.de");
+        when(customerService.createCustomer(eq(ORG), eq("C-1001"), eq("ACME GmbH"), eq("info@acme.de")))
+                .thenReturn(created);
 
         mvc.perform(post("/v1/crm/customers").contentType(APPLICATION_JSON).content("""
-                        {"customerNumber":"C-1001","name":"ACME GmbH","email":"info@acme.de"}"""))
+                        {"orgUnitId":"%s","customerNumber":"C-1001","name":"ACME GmbH","email":"info@acme.de"}"""
+                        .formatted(ORG)))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location",
                         org.hamcrest.Matchers.endsWith("/v1/crm/customers/" + created.id().value())))
                 .andExpect(jsonPath("$.id").value(created.id().value().toString()))
+                .andExpect(jsonPath("$.orgUnitId").value(ORG.toString()))
                 .andExpect(jsonPath("$.customerNumber").value("C-1001"))
                 .andExpect(jsonPath("$.name").value("ACME GmbH"))
                 .andExpect(jsonPath("$.email").value("info@acme.de"));
@@ -62,15 +68,24 @@ class CustomerControllerContractTest {
     @Test
     void createWithBlankNameReturns400() throws Exception {
         mvc.perform(post("/v1/crm/customers").contentType(APPLICATION_JSON).content("""
-                        {"customerNumber":"C-1","name":"","email":"a@b.de"}"""))
+                        {"orgUnitId":"%s","customerNumber":"C-1","name":"","email":"a@b.de"}""".formatted(ORG)))
                 .andExpect(status().isBadRequest());
 
-        verify(customerService, never()).createCustomer(any(), any(), any());
+        verify(customerService, never()).createCustomer(any(), any(), any(), any());
+    }
+
+    @Test
+    void createWithoutOrgUnitIdReturns400() throws Exception {
+        mvc.perform(post("/v1/crm/customers").contentType(APPLICATION_JSON).content("""
+                        {"customerNumber":"C-1","name":"ACME","email":"a@b.de"}"""))
+                .andExpect(status().isBadRequest());
+
+        verify(customerService, never()).createCustomer(any(), any(), any(), any());
     }
 
     @Test
     void getByIdReturns200() throws Exception {
-        Customer customer = Customer.create("C-1001", "ACME GmbH", "info@acme.de");
+        Customer customer = Customer.create(ORG, "C-1001", "ACME GmbH", "info@acme.de");
         when(customerService.getCustomer(any(CustomerId.class))).thenReturn(customer);
 
         mvc.perform(get("/v1/crm/customers/{id}", customer.id().value()))
@@ -90,7 +105,7 @@ class CustomerControllerContractTest {
     @Test
     void getByIdExposesTheVersionAsAnETag() throws Exception {
         Customer customer = Customer.reconstitute(new CustomerId(java.util.UUID.randomUUID()), 7L,
-                "C-1001", "ACME GmbH", "info@acme.de");
+                ORG, "C-1001", "ACME GmbH", "info@acme.de");
         when(customerService.getCustomer(any(CustomerId.class))).thenReturn(customer);
 
         mvc.perform(get("/v1/crm/customers/{id}", customer.id().value()))
@@ -102,7 +117,7 @@ class CustomerControllerContractTest {
     @Test
     void updateWithIfMatchAppliesTheExpectedVersionAndReturnsNewETag() throws Exception {
         CustomerId id = new CustomerId(java.util.UUID.randomUUID());
-        Customer updated = Customer.reconstitute(id, 8L, "C-1001", "ACME AG", "info@acme.de");
+        Customer updated = Customer.reconstitute(id, 8L, ORG, "C-1001", "ACME AG", "info@acme.de");
         when(customerService.updateCustomer(eq(id), eq(7L), eq("ACME AG"), eq("info@acme.de"))).thenReturn(updated);
 
         mvc.perform(put("/v1/crm/customers/{id}", id.value())
@@ -140,7 +155,7 @@ class CustomerControllerContractTest {
     @Test
     void listReturnsPagedEnvelope() throws Exception {
         when(customerService.listCustomers(any()))
-                .thenReturn(new PageImpl<>(List.of(Customer.create("C-1", "ACME", "a@acme.de"))));
+                .thenReturn(new PageImpl<>(List.of(Customer.create(ORG, "C-1", "ACME", "a@acme.de"))));
 
         mvc.perform(get("/v1/crm/customers"))
                 .andExpect(status().isOk())

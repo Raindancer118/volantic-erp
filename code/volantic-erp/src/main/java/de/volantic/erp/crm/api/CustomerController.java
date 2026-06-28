@@ -39,7 +39,8 @@ class CustomerController {
 
     @PostMapping
     ResponseEntity<CustomerResponse> create(@Valid @RequestBody CreateCustomerRequest request) {
-        Customer created = customers.createCustomer(request.customerNumber(), request.name(), request.email());
+        Customer created = customers.createCustomer(
+                request.orgUnitId(), request.customerNumber(), request.name(), request.email());
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}").buildAndExpand(created.id().value()).toUri();
         CustomerResponse body = CustomerResponse.from(created);

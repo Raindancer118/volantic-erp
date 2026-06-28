@@ -15,6 +15,9 @@ class CustomerEntity extends AbstractEntity {
     @Column(name = "customer_number", nullable = false, unique = true, updatable = false)
     private String customerNumber;
 
+    @Column(name = "org_unit_id", nullable = false, updatable = false)
+    private UUID orgUnitId;
+
     @Column(name = "name", nullable = false)
     private String name;
 
@@ -24,8 +27,9 @@ class CustomerEntity extends AbstractEntity {
     protected CustomerEntity() {
     }
 
-    CustomerEntity(UUID id, String customerNumber, String name, String email) {
+    CustomerEntity(UUID id, UUID orgUnitId, String customerNumber, String name, String email) {
         super(id);
+        this.orgUnitId = orgUnitId;
         this.customerNumber = customerNumber;
         this.name = name;
         this.email = email;
@@ -41,10 +45,15 @@ class CustomerEntity extends AbstractEntity {
      * Builds a detached entity carrying the expected optimistic-lock {@code version}, so a
      * {@code save()} becomes a version-checked merge (lost-update protection) instead of a re-load.
      */
-    static CustomerEntity forUpdate(UUID id, String customerNumber, String name, String email, long version) {
-        CustomerEntity entity = new CustomerEntity(id, customerNumber, name, email);
+    static CustomerEntity forUpdate(UUID id, UUID orgUnitId, String customerNumber, String name, String email,
+                                    long version) {
+        CustomerEntity entity = new CustomerEntity(id, orgUnitId, customerNumber, name, email);
         entity.markPersisted(version);
         return entity;
+    }
+
+    UUID orgUnitId() {
+        return orgUnitId;
     }
 
     String customerNumber() {
