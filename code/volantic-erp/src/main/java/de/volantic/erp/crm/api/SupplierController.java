@@ -36,7 +36,8 @@ class SupplierController {
 
     @PostMapping
     ResponseEntity<SupplierResponse> create(@Valid @RequestBody CreateSupplierRequest request) {
-        Supplier created = suppliers.createSupplier(request.supplierNumber(), request.name(), request.email());
+        Supplier created = suppliers.createSupplier(
+                request.orgUnitId(), request.supplierNumber(), request.name(), request.email());
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}").buildAndExpand(created.id().value()).toUri();
         SupplierResponse body = SupplierResponse.from(created);

@@ -8,6 +8,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Outbound adapter for {@link InvoiceRepository}: maps between the domain {@link Invoice} and the JPA
@@ -39,5 +41,10 @@ class InvoiceRepositoryAdapter implements InvoiceRepository {
     @Override
     public Page<Invoice> findAll(Pageable pageable) {
         return jpa.findAll(pageable).map(InvoiceEntity::toDomain);
+    }
+
+    @Override
+    public Page<Invoice> findAllInOrgUnits(Set<UUID> orgUnitIds, Pageable pageable) {
+        return jpa.findAllByOrgUnitIdIn(orgUnitIds, pageable).map(InvoiceEntity::toDomain);
     }
 }

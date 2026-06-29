@@ -37,6 +37,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(addFilters = false)
 class InvoiceControllerContractTest {
 
+    private static final UUID ORG_UNIT = UUID.fromString("00000000-0000-0000-0000-000000000001");
+
     @Autowired
     private MockMvc mvc;
 
@@ -44,31 +46,44 @@ class InvoiceControllerContractTest {
     private InvoiceService invoiceService;
 
     private static Invoice draft() {
-        return Invoice.createDraft(UUID.randomUUID(), Currency.getInstance("EUR"),
+        return Invoice.createDraft(ORG_UNIT, UUID.randomUUID(), Currency.getInstance("EUR"),
                 List.of(new InvoiceLine("Widget", new BigDecimal("2"), Money.of("10.00", "EUR"))));
     }
 
     @Test
     void createReturns201WithBody() throws Exception {
-        when(invoiceService.createDraft(any(), any(), any())).thenReturn(draft());
+        when(invoiceService.createDraft(any(), any(), any(), any())).thenReturn(draft());
 
         mvc.perform(post("/v1/sales/invoices").contentType(APPLICATION_JSON).content("""
-                        {"customerId":"%s","currency":"EUR",
+                        {"orgUnitId":"%s","customerId":"%s","currency":"EUR",
                          "lines":[{"description":"Widget","quantity":2,"unitPrice":10.00}]}"""
-                        .formatted(UUID.randomUUID())))
+                        .formatted(ORG_UNIT, UUID.randomUUID())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.orgUnitId").value(ORG_UNIT.toString()))
                 .andExpect(jsonPath("$.total").value(20.00))
                 .andExpect(jsonPath("$.lines[0].lineTotal").value(20.00));
     }
 
     @Test
-    void createWithNoLinesReturns400() throws Exception {
+    void createWithoutOrgUnitIdReturns400() throws Exception {
         mvc.perform(post("/v1/sales/invoices").contentType(APPLICATION_JSON).content("""
-                        {"customerId":"%s","currency":"EUR","lines":[]}""".formatted(UUID.randomUUID())))
+                        {"customerId":"%s","currency":"EUR",
+                         "lines":[{"description":"Widget","quantity":2,"unitPrice":10.00}]}"""
+                        .formatted(UUID.randomUUID())))
                 .andExpect(status().isBadRequest());
 
-        verify(invoiceService, never()).createDraft(any(), any(), any());
+        verify(invoiceService, never()).createDraft(any(), any(), any(), any());
+    }
+
+    @Test
+    void createWithNoLinesReturns400() throws Exception {
+        mvc.perform(post("/v1/sales/invoices").contentType(APPLICATION_JSON).content("""
+                        {"orgUnitId":"%s","customerId":"%s","currency":"EUR","lines":[]}"""
+                        .formatted(ORG_UNIT, UUID.randomUUID())))
+                .andExpect(status().isBadRequest());
+
+        verify(invoiceService, never()).createDraft(any(), any(), any(), any());
     }
 
     @Test

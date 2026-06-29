@@ -19,6 +19,8 @@ import static org.mockito.Mockito.when;
 /** Unit test for {@link SupplierLifecycleHandler} field wiring onto {@link SupplierService} (mocked). */
 class SupplierLifecycleHandlerTest {
 
+    private static final UUID ORG = UUID.fromString("00000000-0000-0000-0000-000000000001");
+
     private final SupplierService suppliers = mock(SupplierService.class);
     private final SupplierLifecycleHandler handler = new SupplierLifecycleHandler(suppliers, new ObjectMapper());
 
@@ -28,27 +30,28 @@ class SupplierLifecycleHandlerTest {
     }
 
     @Test
-    void createDelegatesWithNumberNameEmail() {
+    void createDelegatesWithOrgUnitNumberNameEmail() {
         UUID id = UUID.randomUUID();
-        when(suppliers.createSupplier("S-1", "Globex", "sales@globex.de"))
-                .thenReturn(Supplier.reconstitute(new SupplierId(id), "S-1", "Globex", "sales@globex.de"));
+        when(suppliers.createSupplier(ORG, "S-1", "Globex", "sales@globex.de"))
+                .thenReturn(Supplier.reconstitute(new SupplierId(id), ORG, "S-1", "Globex", "sales@globex.de"));
 
-        UUID created = handler.create(Map.of("supplierNumber", "S-1", "name", "Globex", "email", "sales@globex.de"));
+        UUID created = handler.create(Map.of(
+                "orgUnitId", ORG.toString(), "supplierNumber", "S-1", "name", "Globex", "email", "sales@globex.de"));
 
         assertThat(created).isEqualTo(id);
     }
 
     @Test
-    void snapshotThenRecreateRestoresOriginalNumberAndId() {
+    void snapshotThenRecreateRestoresOriginalNumberIdAndOrgUnit() {
         UUID id = UUID.randomUUID();
         when(suppliers.getSupplier(new SupplierId(id)))
-                .thenReturn(Supplier.reconstitute(new SupplierId(id), "S-1", "Globex", "sales@globex.de"));
+                .thenReturn(Supplier.reconstitute(new SupplierId(id), ORG, "S-1", "Globex", "sales@globex.de"));
 
         String snapshot = handler.snapshot(id);
-        assertThat(snapshot).contains("\"supplierNumber\":\"S-1\"");
+        assertThat(snapshot).contains("\"supplierNumber\":\"S-1\"").contains("\"orgUnitId\":\"" + ORG + "\"");
 
         handler.recreate(id, snapshot);
-        verify(suppliers).recreateSupplier(eq(new SupplierId(id)), eq("S-1"), eq("Globex"), eq("sales@globex.de"));
+        verify(suppliers).recreateSupplier(eq(new SupplierId(id)), eq(ORG), eq("S-1"), eq("Globex"), eq("sales@globex.de"));
     }
 
     @Test

@@ -9,6 +9,9 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.UUID;
+
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -21,6 +24,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(addFilters = false)
 class SupplierControllerContractTest {
 
+    private static final UUID ORG = UUID.fromString("00000000-0000-0000-0000-000000000001");
+
     @Autowired
     private MockMvc mvc;
 
@@ -29,14 +34,17 @@ class SupplierControllerContractTest {
 
     @Test
     void createReturns201WithLocationAndBody() throws Exception {
-        Supplier created = Supplier.create("S-1001", "Globex", "sales@globex.de");
-        when(supplierService.createSupplier("S-1001", "Globex", "sales@globex.de")).thenReturn(created);
+        Supplier created = Supplier.create(ORG, "S-1001", "Globex", "sales@globex.de");
+        when(supplierService.createSupplier(eq(ORG), eq("S-1001"), eq("Globex"), eq("sales@globex.de")))
+                .thenReturn(created);
 
         mvc.perform(post("/v1/crm/suppliers").contentType(APPLICATION_JSON).content("""
-                        {"supplierNumber":"S-1001","name":"Globex","email":"sales@globex.de"}"""))
+                        {"orgUnitId":"%s","supplierNumber":"S-1001","name":"Globex","email":"sales@globex.de"}"""
+                        .formatted(ORG)))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location",
                         org.hamcrest.Matchers.endsWith("/v1/crm/suppliers/" + created.id().value())))
+                .andExpect(jsonPath("$.orgUnitId").value(ORG.toString()))
                 .andExpect(jsonPath("$.supplierNumber").value("S-1001"))
                 .andExpect(jsonPath("$.name").value("Globex"));
     }
@@ -44,7 +52,14 @@ class SupplierControllerContractTest {
     @Test
     void createWithBlankNameReturns400() throws Exception {
         mvc.perform(post("/v1/crm/suppliers").contentType(APPLICATION_JSON).content("""
-                        {"supplierNumber":"S-1","name":"","email":"a@b.de"}"""))
+                        {"orgUnitId":"%s","supplierNumber":"S-1","name":"","email":"a@b.de"}""".formatted(ORG)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createWithoutOrgUnitIdReturns400() throws Exception {
+        mvc.perform(post("/v1/crm/suppliers").contentType(APPLICATION_JSON).content("""
+                        {"supplierNumber":"S-1","name":"Globex","email":"a@b.de"}"""))
                 .andExpect(status().isBadRequest());
     }
 }

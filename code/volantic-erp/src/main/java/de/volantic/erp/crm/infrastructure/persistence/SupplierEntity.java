@@ -15,6 +15,9 @@ class SupplierEntity extends AbstractEntity {
     @Column(name = "supplier_number", nullable = false, unique = true, updatable = false)
     private String supplierNumber;
 
+    @Column(name = "org_unit_id", nullable = false, updatable = false)
+    private UUID orgUnitId;
+
     @Column(name = "name", nullable = false)
     private String name;
 
@@ -24,8 +27,9 @@ class SupplierEntity extends AbstractEntity {
     protected SupplierEntity() {
     }
 
-    SupplierEntity(UUID id, String supplierNumber, String name, String email) {
+    SupplierEntity(UUID id, UUID orgUnitId, String supplierNumber, String name, String email) {
         super(id);
+        this.orgUnitId = orgUnitId;
         this.supplierNumber = supplierNumber;
         this.name = name;
         this.email = email;
@@ -37,10 +41,15 @@ class SupplierEntity extends AbstractEntity {
     }
 
     /** Detached entity carrying the expected version for a version-checked merge (optimistic locking). */
-    static SupplierEntity forUpdate(UUID id, String supplierNumber, String name, String email, long version) {
-        SupplierEntity entity = new SupplierEntity(id, supplierNumber, name, email);
+    static SupplierEntity forUpdate(UUID id, UUID orgUnitId, String supplierNumber, String name, String email,
+                                    long version) {
+        SupplierEntity entity = new SupplierEntity(id, orgUnitId, supplierNumber, name, email);
         entity.markPersisted(version);
         return entity;
+    }
+
+    UUID orgUnitId() {
+        return orgUnitId;
     }
 
     String supplierNumber() {
