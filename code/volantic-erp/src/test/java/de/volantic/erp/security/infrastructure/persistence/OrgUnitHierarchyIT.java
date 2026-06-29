@@ -11,10 +11,6 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.cache.CacheManager;
-import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -31,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * a real PostgreSQL and exercises the real {@link OrgUnitHierarchy} adapter for both ancestor and
  * descendant resolution.
  *
- * <p>The test uses a lightweight {@link ConcurrentMapCacheManager} in place of Redis so the
+ * <p>The test uses a lightweight in-memory cache ({@link OrgTreeTestCacheConfig}) in place of Redis so the
  * {@code @Cacheable} on {@link OrgTreeCache#load()} is active (the cache does NOT degrade to DB on every
  * call). Each test method evicts the cache in {@link #evictCache()} so the seeded tree is picked up fresh.
  *
@@ -40,20 +36,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({OrgUnitRepositoryAdapter.class, OrgTreeCache.class, OrgUnitHierarchyAdapter.class,
-        OrgUnitHierarchyIT.CacheConfig.class})
+        OrgTreeTestCacheConfig.class})
 @Testcontainers(disabledWithoutDocker = true)
 class OrgUnitHierarchyIT {
-
-    /** In-memory cache replaces Redis for this slice (no Redis in @DataJpaTest). */
-    @Configuration
-    @EnableCaching
-    static class CacheConfig {
-
-        @Bean
-        CacheManager cacheManager() {
-            return new ConcurrentMapCacheManager(CacheNames.ORG_TREE);
-        }
-    }
 
     @Container
     @ServiceConnection
@@ -79,7 +64,9 @@ class OrgUnitHierarchyIT {
         // Evict the org-tree cache so the fresh tree is loaded, not a stale entry from a previous test.
         evictCache();
 
-        OrgUnit root = repository.save(OrgUnit.create("ROOT", "Root", null));
+        // Code "ROOT" is taken by the seeded baseline unit (migration V004); use a distinct code so this
+        // test owns an isolated tree. The seeded unit is a separate root and never a descendant/ancestor here.
+        OrgUnit root = repository.save(OrgUnit.create("ACME", "Root", null));
         rootId = root.id().value();
 
         OrgUnit childA = repository.save(OrgUnit.create("CHILD-A", "Child A", root.id()));

@@ -4,6 +4,10 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
+- 2026-06-29 `fix(security)` (4b17835) — green the org-unit persistence ITs under Docker (ADR-0007)
+  - OrgUnitHierarchyIT: nested @Configuration in @DataJpaTest broke @EnableAutoConfiguration base-package resolution → extracted to top-level @TestConfiguration
+  - both ITs collided with the V004-seeded ROOT unit → use distinct codes and count relative to the seeded baseline
+  - full ./gradlew check with Docker now green (403 tests, 0 failures) 
 - 2026-06-28 `feat(crm)` (b06afca) — inherited org-unit scope for addresses and contacts (ADR-0007)
   - Address/Contact have no own unit — they inherit the owning customer/supplier's unit via the new PartnerOrgUnits resolver
   - no schema or REST change; completes the CRM org-scope rollout 

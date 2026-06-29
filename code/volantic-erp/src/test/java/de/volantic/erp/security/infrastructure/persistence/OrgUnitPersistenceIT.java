@@ -45,20 +45,21 @@ class OrgUnitPersistenceIT {
 
     @Test
     void savingRootPopulatesVersionAndNullParent() {
-        OrgUnit root = OrgUnit.create("ROOT", "Root Organization", null);
+        // Code "ROOT" is reserved by the seeded baseline unit (migration V004); use a distinct code.
+        OrgUnit root = OrgUnit.create("ACME", "Root Organization", null);
 
         OrgUnit saved = repository.save(root);
 
         assertThat(saved.version()).isNotNull();
         assertThat(saved.parentId()).isNull();
         assertThat(saved.isRoot()).isTrue();
-        assertThat(saved.code()).isEqualTo("ROOT");
+        assertThat(saved.code()).isEqualTo("ACME");
         assertThat(saved.name()).isEqualTo("Root Organization");
     }
 
     @Test
     void savingChildRoundTripsParentId() {
-        OrgUnit root = repository.save(OrgUnit.create("ROOT", "Root Organization", null));
+        OrgUnit root = repository.save(OrgUnit.create("ACME", "Root Organization", null));
         em.flush();
         em.clear();
 
@@ -104,16 +105,19 @@ class OrgUnitPersistenceIT {
 
     @Test
     void findAllPagedReturnsCorrectSliceAndCount() {
+        // Account for the seeded baseline unit(s) (migration V004) rather than assuming an empty table.
+        long baseline = repository.findAll(PageRequest.of(0, 1)).getTotalElements();
         for (int i = 1; i <= 3; i++) {
             repository.save(OrgUnit.create("ORG-" + i, "Organization " + i, null));
         }
         em.flush();
         em.clear();
 
+        long total = baseline + 3;
         Page<OrgUnit> firstPage = repository.findAll(PageRequest.of(0, 2));
 
         assertThat(firstPage.getContent()).hasSize(2);
-        assertThat(firstPage.getTotalElements()).isEqualTo(3);
-        assertThat(firstPage.getTotalPages()).isEqualTo(2);
+        assertThat(firstPage.getTotalElements()).isEqualTo(total);
+        assertThat(firstPage.getTotalPages()).isEqualTo((int) Math.ceil(total / 2.0));
     }
 }
