@@ -4,7 +4,7 @@ All notable changes to Volantic ERP, newest first.
 Each entry: `date` `type(scope)` (commit) — summary, with optional details indented below.
 
 <!-- CHANGELOG:INSERT -->
-- 2026-06-29 `fix(security)` (4b17835) — green the org-unit persistence ITs under Docker (ADR-0007)
+- 2026-06-29 `fix(security)` (d9ca09a) — green the org-unit persistence ITs under Docker (ADR-0007)
   - OrgUnitHierarchyIT: nested @Configuration in @DataJpaTest broke @EnableAutoConfiguration base-package resolution → extracted to top-level @TestConfiguration
   - both ITs collided with the V004-seeded ROOT unit → use distinct codes and count relative to the seeded baseline
   - full ./gradlew check with Docker now green (403 tests, 0 failures) 
